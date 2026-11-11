@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#080b10">
 <title>FRAGZONE — Game Server Browser</title>
 <meta name="description" content="FRAGZONE — каталог игровых серверов с онлайн-мониторингом.">
-<link rel="canonical" href="https://fragzone.gg/">
+<link rel="canonical" href="https://fragzone.pages.dev/">
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -552,11 +552,6 @@ footer a {
     </div>
   </div>
 
-  <div>
-    <div class="side-title" data-t="games">ИГРЫ</div>
-    <div class="nav" id="sideGames"></div>
-  </div>
-
   <div class="sidebar-bottom">
     <strong style="font-size:13px" data-t="yourserver">Твой сервер?</strong>
     <p data-t="addtext">Добавь свой игровой сервер в каталог.</p>
@@ -572,8 +567,8 @@ footer a {
   <div class="breadcrumb">FRAGZONE / <span data-t="monitor">Live monitoring</span></div>
 
   <div class="top-right">
-    <a class="site-url" href="https://fragzone.gg" target="_blank" rel="noopener">
-      FRAGZONE.GG ↗
+    <a class="site-url" href="https://fragzone.pages.dev/" target="_blank" rel="noopener">
+      FRAGZONE ↗
     </a>
     <select class="lang" onchange="setLanguage(this.value)" aria-label="Language">
       <option value="ru">🇷🇺 RU</option>
@@ -703,7 +698,7 @@ footer a {
 
 <footer>
   FRAGZONE © 2026 · LIVE GAME SERVER MONITOR ·
-  <a href="https://fragzone.gg" target="_blank" rel="noopener">FRAGZONE.GG</a>
+  <a href="https://fragzone.pages.dev/" target="_blank" rel="noopener">FRAGZONE</a>
 </footer>
 </div>
 </div>
@@ -827,7 +822,7 @@ function gameImage(game) {
 
 function findGameStats(id) {
   return gamesStats.find(g =>
-    String(g.game || g.id || g.slug || g.name || "").toLowerCase() === id
+    String(g.game_id || g.game || g.id || g.slug || g.name || "").toLowerCase() === id
   ) || {};
 }
 
@@ -858,23 +853,8 @@ function buildPopularGames() {
   document.getElementById("gamesTracked").textContent = gamesStats.length || games.length;
 }
 
-function buildSideGames() {
-  document.getElementById("sideGames").innerHTML = games.map(g => `
-    <button class="${g.id === currentGame ? "active" : ""}"
-            onclick="selectGame('${g.id}')">
-      <span class="game-mini">
-        <img src="${gameImage(g)}" alt="" loading="lazy"
-             style="width:30px;height:30px;object-fit:cover;border-radius:7px"
-             onerror="this.style.display='none'">
-      </span>
-      ${esc(g.name)}
-    </button>
-  `).join("");
-}
-
 function updateGameSelection() {
   buildPopularGames();
-  buildSideGames();
 }
 
 function setLanguage(value) {
@@ -1237,7 +1217,6 @@ function refreshAll() {
   loadServers();
 }
 
-buildSideGames();
 setLanguage("ru");
 loadStats();
 loadServers();
