@@ -118,8 +118,22 @@ async function handle(request,env){
  return fail("Маршрут не найден",404);
 }
 export async function onRequest({request,env}){
- try{return await handle(request,env);}
- catch(error){
+ try{
+  const url=new URL(request.url);
+  if(url.pathname==="/api/crypto-diagnostic"&&request.method==="GET"){
+   const password=new TextEncoder().encode("fragzone-runtime-check");
+   const salt=new TextEncoder().encode("diagnostic-salt");
+   const runs=10;
+   const started=Date.now();
+   let key;
+   for(let i=0;i<runs;i++){
+    key=await new Promise((resolve,reject)=>pbkdf2(password,salt,100000,32,"sha256",(error,derived)=>error?reject(error):resolve(derived)));
+   }
+   const elapsedMs=Date.now()-started;
+   return json({diagnostic:"native-pbkdf2-100k",ok:true,bytes:key.byteLength,runs,totalElapsedMs:elapsedMs,averageElapsedMs:Number((elapsedMs/runs).toFixed(1)),timer:"Date.now"},200,{"cache-control":"no-store"});
+  }
+  return await handle(request,env);
+  }catch(error){
   const errorId=crypto.randomUUID();
   const message=String(error?.message||"Unknown error");
   // Log only diagnostic metadata; never log request bodies, passwords, cookies, or secrets.
