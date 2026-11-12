@@ -118,11 +118,28 @@ async function handle(request,env){
  return fail("Маршрут не найден",404);
 }
 export async function onRequest({request,env}){
- try{return await handle(request,env);}
- catch(error){
+ try{
+  const url=new URL(request.url);
+  if(url.pathname==="/api/crypto-diagnostic"&&request.method==="GET"){
+   const password=new TextEncoder().encode("fragzone-runtime-check");
+   const salt=new TextEncoder().encode("diagnostic-salt");
+   const key=await crypto.subtle.importKey("raw",password,{name:"PBKDF2"},false,["deriveBits"]);
+   async function test(iterations){
+    try{
+     const bits=await crypto.subtle.deriveBits({name:"PBKDF2",hash:"SHA-256",salt,iterations},key,256);
+     return {ok:true,bytes:bits.byteLength};
+    }catch(error){
+     return {ok:false,name:error?.name||"Error",message:String(error?.message||"Derivation failed").slice(0,200)};
+    }
+   }
+   const baseline100k=await test(100000);
+   const target210k=await test(210000);
+   return json({diagnostic:"webcrypto-pbkdf2-runtime",baseline100k,target210k},200,{"cache-control":"no-store"});
+  }
+  return await handle(request,env);
+ }catch(error){
   const errorId=crypto.randomUUID();
   const message=String(error?.message||"Unknown error");
-  // Log only diagnostic metadata; never log request bodies, passwords, cookies, or secrets.
   console.error("FRAGZONE_API_ERROR", {errorId,name:error?.name||"Error",message});
   if(/no such table/i.test(message))return json({error:"Таблицы поддержки не созданы. Выполните schema.sql в подключённой базе D1.",errorId},503);
   return json({error:"Внутренняя ошибка сервера. Передайте поддержке код ошибки.",errorId},500);
