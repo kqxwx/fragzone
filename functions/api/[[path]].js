@@ -123,14 +123,14 @@ export async function onRequest({request,env}){
   if(url.pathname==="/api/crypto-diagnostic"&&request.method==="GET"){
    const password=new TextEncoder().encode("fragzone-runtime-check");
    const salt=new TextEncoder().encode("diagnostic-salt");
-   const runs=3;
-   const started=performance.now();
+   const runs=10;
+   const started=Date.now();
    let key;
    for(let i=0;i<runs;i++){
     key=await new Promise((resolve,reject)=>pbkdf2(password,salt,100000,32,"sha256",(error,derived)=>error?reject(error):resolve(derived)));
    }
-   const elapsedMs=Number((performance.now()-started).toFixed(3));
-   return json({diagnostic:"native-pbkdf2-100k",ok:true,bytes:key.byteLength,runs,totalElapsedMs:elapsedMs,averageElapsedMs:Number((elapsedMs/runs).toFixed(3))},200,{"cache-control":"no-store"});
+   const elapsedMs=Date.now()-started;
+   return json({diagnostic:"native-pbkdf2-100k",ok:true,bytes:key.byteLength,runs,totalElapsedMs:elapsedMs,averageElapsedMs:Number((elapsedMs/runs).toFixed(1)),timer:"Date.now"},200,{"cache-control":"no-store"});
   }
   return await handle(request,env);
   }catch(error){
