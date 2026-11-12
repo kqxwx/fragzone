@@ -1,4 +1,4 @@
-import { pbkdf2 } from "node:crypto";
+import { createHmac, pbkdf2 } from "node:crypto";
 
 const COOKIE = "fz_session";
 const SESSION_DAYS = 14;
@@ -11,16 +11,23 @@ function json(data, status = 200, headers = {}) {
 function fail(error,status=400){return json({error},status);}
 function randomHex(bytes=32){const value=new Uint8Array(bytes);crypto.getRandomValues(value);return [...value].map(x=>x.toString(16).padStart(2,"0")).join("");}
 async function sha256(value){const hash=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value));return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,"0")).join("");}
+function derivePbkdf2HmacSha256(passwordBytes,salt,iterations){
+ const block=new Uint8Array(salt.length+4);
+ block.set(salt);
+ block[block.length-1]=1;
+ let u=createHmac("sha256",passwordBytes).update(block).digest();
+ const result=Uint8Array.from(u);
+ for(let i=1;i<iterations;i++){
+  u=createHmac("sha256",passwordBytes).update(u).digest();
+  for(let j=0;j<result.length;j++)result[j]^=u[j];
+ }
+ return result;
+}
 async function derivePassword(password,saltHex){
  const salt=Uint8Array.from(saltHex.match(/.{2}/g),x=>parseInt(x,16));
  const passwordBytes=new TextEncoder().encode(password);
- const bits=await new Promise((resolve,reject)=>{
-  pbkdf2(passwordBytes,salt,PBKDF2_ITERATIONS,32,"sha256",(error,derivedKey)=>{
-   if(error)reject(error);
-   else resolve(derivedKey);
-  });
- });
- return [...new Uint8Array(bits)].map(x=>x.toString(16).padStart(2,"0")).join("");
+ const bits=derivePbkdf2HmacSha256(passwordBytes,salt,PBKDF2_ITERATIONS);
+ return [...bits].map(x=>x.toString(16).padStart(2,"0")).join("");
 }
 async function verifyPassword(password,encoded){if(!encoded||!encoded.includes(":"))return false;const [salt,expected]=encoded.split(":");return(await derivePassword(password,salt))===expected;}
 function setCookie(token,age=SESSION_DAYS*86400){return `${COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${age}`;}
@@ -121,16 +128,18 @@ export async function onRequest({request,env}){
  try{
   const url=new URL(request.url);
   if(url.pathname==="/api/crypto-diagnostic"&&request.method==="GET"){
-   const test=(iterations)=>new Promise(resolve=>{
+   const password=new TextEncoder().encode("fragzone-runtime-check");
+   const salt=new TextEncoder().encode("diagnostic-salt");
+   const native100k=await new Promise((resolve,reject)=>pbkdf2(password,salt,100000,32,"sha256",(error,key)=>error?reject(error):resolve(key)));
+   const test=(iterations)=>{
+    const started=performance.now();
     try{
-     pbkdf2(new TextEncoder().encode("fragzone-runtime-check"),new TextEncoder().encode("diagnostic-salt"),iterations,32,"sha256",(error,key)=>{
-      resolve(error?{ok:false,name:error.name,message:error.message}:{ok:true,bytes:key.byteLength});
-     });
-    }catch(error){resolve({ok:false,name:error?.name||"Error",message:String(error?.message||error)});}
-   });
-   const baseline=await test(100000);
-   const target=await test(PBKDF2_ITERATIONS);
-   return json({diagnostic:"pbkdf2-runtime",baseline100k:baseline,target210k:target},200,{"cache-control":"no-store"});
+     const key=derivePbkdf2HmacSha256(password,salt,iterations);
+     const matchesNative=iterations===100000?key.every((value,index)=>value===native100k[index]):undefined;
+     return {ok:true,bytes:key.byteLength,elapsedMs:Math.round(performance.now()-started),...(matchesNative===undefined?{}:{matchesNative})};
+    }catch(error){return {ok:false,name:error?.name||"Error",message:String(error?.message||error),elapsedMs:Math.round(performance.now()-started)};}
+   };
+   return json({diagnostic:"pbkdf2-hmac-runtime",baseline100k:test(100000),target210k:test(PBKDF2_ITERATIONS)},200,{"cache-control":"no-store"});
   }
   return await handle(request,env);
  }
