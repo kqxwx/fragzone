@@ -550,6 +550,9 @@ footer a {
       <button onclick="setPage('favorites')" data-page="favorites">
         <span class="nav-icon">♡</span><span data-t="favorites">Избранное</span>
       </button>
+      <button onclick="location.href='/support/'">
+        <span class="nav-icon">✉</span><span data-t="support">Поддержка</span>
+      </button>
     </div>
   </div>
 
@@ -568,6 +571,7 @@ footer a {
   <div class="breadcrumb">FRAGZONE / <span data-t="monitor">Live monitoring</span></div>
 
   <div class="top-right">
+    <a class="site-url" href="/support/" data-t="support">Поддержка</a>
     <a class="site-url" href="https://fragzone.pages.dev/" target="_blank" rel="noopener">
       FRAGZONE ↗
     </a>
@@ -729,7 +733,7 @@ const games = [
 
 const words = {
 ru:{
- navigation:"НАВИГАЦИЯ",home:"Главная",favorites:"Избранное",games:"ИГРЫ",
+ navigation:"НАВИГАЦИЯ",home:"Главная",favorites:"Избранное",support:"Поддержка",games:"ИГРЫ",
  yourserver:"Твой сервер?",addtext:"Добавь свой игровой сервер в каталог.",add:"Добавить сервер",
  monitor:"Мониторинг серверов",hero:"Твоя игра. Твои серверы. Твой мир.",
  heroText:"Находи игровые серверы, проверяй онлайн и подключайся к своему комьюнити.",
@@ -746,7 +750,7 @@ ru:{
  checked:"Проверен",unknown:"Неизвестно",servers:"серверов"
 },
 en:{
- navigation:"NAVIGATION",home:"Home",favorites:"Favorites",games:"GAMES",
+ navigation:"NAVIGATION",home:"Home",favorites:"Favorites",support:"Support",games:"GAMES",
  yourserver:"Your server?",addtext:"Add your game server to the catalog.",add:"Add server",
  monitor:"Server monitoring",hero:"Your game. Your servers. Your world.",
  heroText:"Find game servers, check live players and join your community.",
@@ -763,7 +767,7 @@ en:{
  checked:"Checked",unknown:"Unknown",servers:"servers"
 },
 pl:{
- navigation:"NAWIGACJA",home:"Strona główna",favorites:"Ulubione",games:"GRY",
+ navigation:"NAWIGACJA",home:"Strona główna",favorites:"Ulubione",support:"Wsparcie",games:"GRY",
  yourserver:"Twój serwer?",addtext:"Dodaj serwer gry do katalogu.",add:"Dodaj serwer",
  monitor:"Monitoring serwerów",hero:"Twoja gra. Twoje serwery. Twój świat.",
  heroText:"Znajdź serwery gier, sprawdź graczy online i dołącz do społeczności.",
