@@ -2,7 +2,7 @@ import { pbkdf2 } from "node:crypto";
 
 const COOKIE = "fz_session";
 const SESSION_DAYS = 14;
-const PBKDF2_ITERATIONS = 210000;
+const PBKDF2_ITERATIONS = 100000;
 const MAX_BODY = 20000;
 
 function json(data, status = 200, headers = {}) {
@@ -22,7 +22,16 @@ async function derivePassword(password,saltHex){
  });
  return [...new Uint8Array(bits)].map(x=>x.toString(16).padStart(2,"0")).join("");
 }
-async function verifyPassword(password,encoded){if(!encoded||!encoded.includes(":"))return false;const [salt,expected]=encoded.split(":");return(await derivePassword(password,salt))===expected;}
+async function verifyPassword(password,encoded){
+ if(typeof encoded!=="string")return "invalid";
+ const parts=encoded.split("$");
+ if(parts.length!==4||parts[0]!=="pbkdf2"||parts[1]!==String(PBKDF2_ITERATIONS)||!/^[0-9a-f]{32}$/i.test(parts[2])||!/^[0-9a-f]{64}$/i.test(parts[3]))return "legacy";
+ const actual=await derivePassword(password,parts[2]);
+ const expected=parts[3].toLowerCase();
+ let difference=0;
+ for(let i=0;i<actual.length;i++)difference|=actual.charCodeAt(i)^expected.charCodeAt(i);
+ return difference===0;
+}
 function setCookie(token,age=SESSION_DAYS*86400){return `${COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${age}`;}
 function getCookie(request){const part=(request.headers.get("Cookie")||"").split(";").map(x=>x.trim()).find(x=>x.startsWith(COOKIE+"="));return part?part.slice(COOKIE.length+1):null;}
 function clean(value,max){return typeof value==="string"?value.trim().replace(/\u0000/g,"").slice(0,max):"";}
@@ -51,14 +60,17 @@ async function handle(request,env){
   if(password.length<10||password.length>128)return fail("Пароль должен содержать от 10 до 128 символов");
   if(email===(env.ADMIN_EMAIL||"").toLowerCase())return fail("Этот email зарезервирован для администратора",409);
   if(await env.DB.prepare("SELECT id FROM users WHERE email=?").bind(email).first())return fail("Аккаунт с таким email уже существует",409);
-  const salt=randomHex(16),hash=salt+":"+await derivePassword(password,salt),id=crypto.randomUUID();
+  const salt=randomHex(16),hash="pbkdf2$"+PBKDF2_ITERATIONS+"$"+salt+"$"+await derivePassword(password,salt),id=crypto.randomUUID();
   await env.DB.prepare("INSERT INTO users(id,email,username,password_hash,role) VALUES(?,?,?,?,'user')").bind(id,email,username,hash).run();
   const token=await createSession(id,env);return json({user:{id,email,username,role:"user"}},201,{"set-cookie":setCookie(token)});
  }
  if(path==="auth/login"&&method==="POST"){
   const body=await readBody(request),email=clean(body.email,254).toLowerCase(),password=typeof body.password==="string"?body.password:"";
   const user=await env.DB.prepare("SELECT * FROM users WHERE email=?").bind(email).first();
-  if(!user||!(await verifyPassword(password,user.password_hash)))return fail("Неверный email или пароль",401);
+  if(!user)return fail("Неверный email или пароль",401);
+  const passwordCheck=await verifyPassword(password,user.password_hash);
+  if(passwordCheck==="legacy")return fail("Для этого аккаунта требуется восстановление пароля: сохранённый хеш использует старый формат, несовместимый с бесплатным тарифом Cloudflare.",409);
+  if(passwordCheck!==true)return fail("Неверный email или пароль",401);
   const token=await createSession(user.id,env);return json({user:viewUser(user)},200,{"set-cookie":setCookie(token)});
  }
  if(path==="auth/logout"&&method==="POST"){const token=getCookie(request);if(token)await env.DB.prepare("DELETE FROM sessions WHERE token_hash=?").bind(await sha256(token)).run();return json({ok:true},200,{"set-cookie":setCookie("",0)});}
@@ -97,7 +109,10 @@ async function handle(request,env){
  if(path==="admin/login"&&method==="POST"){
   const body=await readBody(request),email=clean(body.email,254).toLowerCase(),password=typeof body.password==="string"?body.password:"";
   if(!env.ADMIN_EMAIL||!env.ADMIN_PASSWORD_HASH)return fail("Администратор не настроен в Cloudflare",503);
-  if(email!==env.ADMIN_EMAIL.toLowerCase()||!(await verifyPassword(password,env.ADMIN_PASSWORD_HASH)))return fail("Неверные данные администратора",401);
+  if(email!==env.ADMIN_EMAIL.toLowerCase())return fail("Неверные данные администратора",401);
+  const adminPasswordCheck=await verifyPassword(password,env.ADMIN_PASSWORD_HASH);
+  if(adminPasswordCheck==="legacy")return fail("Хеш ADMIN_PASSWORD_HASH нужно обновить до формата pbkdf2$100000$salt$hash для бесплатного тарифа.",503);
+  if(adminPasswordCheck!==true)return fail("Неверные данные администратора",401);
   let admin=await env.DB.prepare("SELECT * FROM users WHERE email=?").bind(email).first();
   if(!admin){const id=crypto.randomUUID();await env.DB.prepare("INSERT INTO users(id,email,username,password_hash,role) VALUES(?,?, 'Администратор',?,'admin')").bind(id,email,env.ADMIN_PASSWORD_HASH).run();admin={id,email,username:"Администратор",role:"admin"};}
   else{await env.DB.prepare("UPDATE users SET role='admin' WHERE id=?").bind(admin.id).run();admin.role="admin";}
