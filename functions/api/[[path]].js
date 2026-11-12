@@ -129,7 +129,7 @@ export async function onRequest({request,env}){
    return json({diagnostic:"native-pbkdf2-100k",ok:true,bytes:key.byteLength,elapsedMs},200,{"cache-control":"no-store"});
   }
   return await handle(request,env);
- catch(error){
+  }catch(error){
   const errorId=crypto.randomUUID();
   const message=String(error?.message||"Unknown error");
   // Log only diagnostic metadata; never log request bodies, passwords, cookies, or secrets.
