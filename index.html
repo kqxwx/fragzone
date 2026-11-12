@@ -532,6 +532,13 @@ footer a {
   .popular-games { grid-template-columns:1fr; }
   .site-url { font-size:10px; }
 }
+
+.account-panel{display:grid;grid-template-columns:1fr minmax(280px,420px);gap:22px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:20px 22px;margin-bottom:22px}
+.account-copy h2{font-size:17px;margin:0 0 7px}.account-copy p{font-size:12px;line-height:1.6;color:var(--muted);margin:0}
+.account-form{display:grid;grid-template-columns:1fr 1fr;gap:8px}.account-form input{min-width:0;width:100%;background:#0b1118;color:white;border:1px solid var(--line);border-radius:8px;padding:11px;outline:none}.account-form input:focus{border-color:var(--green)}
+.account-form .account-wide{grid-column:1/-1}.account-form button{border:0;border-radius:8px;background:var(--green);color:#11190d;padding:11px;font-weight:800}.account-switch{background:transparent!important;color:var(--green)!important;border:1px solid var(--line)!important}.account-message{grid-column:1/-1;margin:0;color:var(--muted);font-size:11px;line-height:1.5}.account-message.error{color:var(--red)}.account-user{display:flex;align-items:center;justify-content:flex-end;gap:12px;font-size:12px}.account-user button{background:var(--panel2);border:1px solid var(--line);color:white;padding:10px;border-radius:8px}
+@media(max-width:760px){.account-panel{grid-template-columns:1fr;padding:17px}.account-user{justify-content:flex-start}.account-form{grid-template-columns:1fr}.account-form .account-wide{grid-column:auto}}
+
 </style>
 </head>
 
@@ -571,6 +578,7 @@ footer a {
   <div class="breadcrumb">FRAGZONE / <span data-t="monitor">Live monitoring</span></div>
 
   <div class="top-right">
+    <a class="site-url" href="#accountPanel">Войти</a>
     <a class="site-url" href="/support/" data-t="support">Поддержка</a>
     <a class="site-url" href="https://fragzone.pages.dev/" target="_blank" rel="noopener">
       FRAGZONE ↗
@@ -596,6 +604,23 @@ footer a {
       <button class="secondary" onclick="refreshAll()" data-t="refresh">Обновить данные ↻</button>
     </div>
   </div>
+</section>
+
+
+<section class="account-panel" id="accountPanel">
+  <div class="account-copy">
+    <h2 id="accountHeading">Аккаунт FRAGZONE</h2>
+    <p id="accountDescription">Войди или создай аккаунт, чтобы пользоваться возможностями FRAGZONE и отправлять обращения в поддержку.</p>
+  </div>
+  <form class="account-form" id="homeAuthForm">
+    <input class="account-wide" id="homeUsername" name="username" minlength="2" maxlength="32" placeholder="Имя пользователя" autocomplete="username" hidden>
+    <input class="account-wide" name="email" type="email" maxlength="254" placeholder="Email" autocomplete="email" required>
+    <input class="account-wide" name="password" type="password" minlength="10" maxlength="128" placeholder="Пароль (минимум 10 символов)" autocomplete="current-password" required>
+    <button class="account-wide" id="homeAuthSubmit" type="submit">Войти</button>
+    <button class="account-wide account-switch" id="homeAuthSwitch" type="button">Нет аккаунта? Создать</button>
+    <p class="account-message" id="homeAuthMessage" role="status" aria-live="polite"></p>
+  </form>
+  <div class="account-user" id="homeAccountUser" hidden></div>
 </section>
 
 <section class="stats">
@@ -1233,5 +1258,60 @@ setInterval(() => {
   }
 },60000);
 </script>
+
+<script>
+(() => {
+  const form = document.getElementById("homeAuthForm");
+  const message = document.getElementById("homeAuthMessage");
+  const username = document.getElementById("homeUsername");
+  const switchButton = document.getElementById("homeAuthSwitch");
+  const submit = document.getElementById("homeAuthSubmit");
+  const userArea = document.getElementById("homeAccountUser");
+  let mode = "login";
+  const say = (text, error=false) => { message.textContent=text; message.classList.toggle("error",error); };
+  const api = async (path, options={}) => {
+    const response = await fetch("/api"+path,{credentials:"same-origin",headers:{"content-type":"application/json"},...options});
+    const data = await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(data.error || "Не удалось выполнить запрос");
+    return data;
+  };
+  const setMode = value => {
+    mode=value;
+    username.hidden=value!=="register";
+    username.required=value==="register";
+    document.querySelector('#homeAuthForm input[name="password"]').autocomplete=value==="register"?"new-password":"current-password";
+    submit.textContent=value==="register"?"Зарегистрироваться":"Войти";
+    switchButton.textContent=value==="register"?"Уже есть аккаунт? Войти":"Нет аккаунта? Создать";
+    document.getElementById("accountHeading").textContent=value==="register"?"Создать аккаунт":"Войти в FRAGZONE";
+    say("");
+  };
+  switchButton.addEventListener("click",()=>setMode(mode==="login"?"register":"login"));
+  form.addEventListener("submit",async event=>{
+    event.preventDefault(); submit.disabled=true; say("Выполняем вход...");
+    const data=new FormData(form);
+    try {
+      await api("/auth/"+mode,{method:"POST",body:JSON.stringify({email:data.get("email"),password:data.get("password"),username:data.get("username")})});
+      await loadAccount();
+    } catch(error) { say(error.message,true); }
+    finally { submit.disabled=false; }
+  });
+  async function loadAccount(){
+    try {
+      const result=await api("/auth/me");
+      if(!result.user) return;
+      form.hidden=true;
+      document.getElementById("accountHeading").textContent="Ты в FRAGZONE";
+      document.getElementById("accountDescription").textContent="Аккаунт активен. Теперь ты можешь создавать обращения в поддержку.";
+      userArea.hidden=false;
+      const label=document.createElement("span"); label.textContent="Вошли как "+result.user.username;
+      const logout=document.createElement("button"); logout.type="button"; logout.textContent="Выйти";
+      logout.addEventListener("click",async()=>{logout.disabled=true;try{await api("/auth/logout",{method:"POST",body:"{}"});location.reload();}catch(error){logout.disabled=false;alert(error.message);}});
+      userArea.replaceChildren(label,logout);
+    } catch(error) { say(error.message,true); }
+  }
+  setMode("login"); loadAccount();
+})();
+</script>
+
 </body>
 </html>
