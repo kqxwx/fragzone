@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080b10">
+<title>Личный кабинет — FRAGZONE</title>
+<style>
+:root{color-scheme:dark;--bg:#080b10;--panel:#101720;--panel2:#151f2b;--line:#25313d;--text:#f0f4f8;--muted:#8593a1;--green:#baff60;--red:#ff657b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px Inter,Arial,sans-serif}
+a{color:var(--green);text-decoration:none}.wrap{max-width:1120px;margin:auto;padding:26px 20px}
+header{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:14px 0 24px;border-bottom:1px solid var(--line)}
+.logo{font-size:22px;font-weight:900;letter-spacing:1px;color:white}.logo span{color:var(--green)}
+nav{display:flex;gap:9px;flex-wrap:wrap}nav a,.btn{padding:10px 13px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);color:var(--text);font-weight:700;font-size:12px}
+h1{font-size:30px;margin:28px 0 7px}.sub{color:var(--muted);margin:0 0 24px;line-height:1.6}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin:20px 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}
+.card small{display:block;color:var(--muted);font-size:11px;margin-bottom:9px}.value{font-size:19px;font-weight:800;overflow-wrap:anywhere}.muted{color:var(--muted)}
+.section{margin-top:28px}.section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}.section h2{font-size:18px;margin:0}
+.ticket{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:14px 2px;border-bottom:1px solid var(--line)}.ticket:last-child{border:0}.ticket strong{display:block;margin-bottom:5px}.ticket small{color:var(--muted)}
+.pill{border:1px solid #465a39;background:#1b2a1e;color:var(--green);border-radius:99px;padding:5px 9px;font-size:10px;white-space:nowrap}
+.empty,.notice{padding:18px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);line-height:1.6}.notice.error{color:var(--red)}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}.primary{background:var(--green);color:#11190d;border:0}
+button{cursor:pointer}.btn:disabled{opacity:.5;cursor:wait}
+@media(max-width:700px){.wrap{padding:15px}.grid{grid-template-columns:1fr}.ticket{align-items:flex-start;flex-direction:column}header{align-items:flex-start;flex-direction:column}h1{font-size:25px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><a class="logo" href="/">FRAG<span>ZONE</span></a><nav><a href="/">Каталог серверов</a><a href="/support/">Поддержка</a><button class="btn" id="logout">Выйти</button></nav></header>
+<main>
+<h1>Личный кабинет</h1><p class="sub" id="welcome">Загружаем данные аккаунта…</p>
+<div id="notice" class="notice" hidden></div>
+<section class="grid" aria-label="Сводка аккаунта">
+<div class="card"><small>Имя пользователя</small><div class="value" id="username">—</div></div>
+<div class="card"><small>Email</small><div class="value" id="email">—</div></div>
+<div class="card"><small>Тип аккаунта</small><div class="value" id="role">—</div></div>
+</section>
+<section class="section">
+<div class="section-head"><h2>Мои обращения</h2><a href="/support/">Создать обращение →</a></div>
+<div class="card" id="tickets"><div class="muted">Загружаем обращения…</div></div>
+</section>
+<section class="section">
+<div class="section-head"><h2>Избранные серверы</h2><a href="/#catalog">Открыть каталог →</a></div>
+<div class="card"><div class="value" id="favoritesCount">0</div><p class="muted">Сохранено на этом устройстве. Избранное пока хранится в браузере и не синхронизируется между устройствами.</p><div class="actions"><a class="btn primary" href="/#catalog">Перейти к серверам</a></div></div>
+</section>
+<section class="section">
+<div class="section-head"><h2>Быстрые ссылки</h2></div>
+<div class="actions"><a class="btn" href="/support/my-tickets.html">Все мои обращения</a><a class="btn" href="/support/">Центр поддержки</a><a class="btn" id="adminLink" href="/support/admin.html" hidden>Панель администратора</a></div>
+</section>
+</main>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+async function api(path,options={}){const res=await fetch("/api"+path,{credentials:"same-origin",headers:{"content-type":"application/json"},...options});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||"Ошибка запроса");return data}
+function showError(message){$("notice").textContent=message;$("notice").className="notice error";$("notice").hidden=false}
+const statusNames={open:"Открыто",in_progress:"В работе",answered:"Есть ответ",closed:"Закрыто"};
+async function init(){
+ try{
+  const me=await api("/auth/me");
+  if(!me.user){location.replace("/#accountPanel");return}
+  $("welcome").textContent="Рады видеть тебя, "+me.user.username+". Здесь собрана информация об аккаунте и обращениях в поддержку.";
+  $("username").textContent=me.user.username;$("email").textContent=me.user.email;$("role").textContent=me.user.role==="admin"?"Администратор":"Пользователь";
+  $("adminLink").hidden=me.user.role!=="admin";
+  try{const favs=JSON.parse(localStorage.getItem("fragzone_live_favs")||"[]");$("favoritesCount").textContent=Array.isArray(favs)?favs.length:0}catch{$("favoritesCount").textContent="—"}
+  const data=await api("/tickets");
+  $("tickets").innerHTML=data.tickets.length?data.tickets.map(t=>'<a class="ticket" href="/support/my-ticket.html?id='+encodeURIComponent(t.id)+'"><span><strong>'+esc(t.subject)+'</strong><small>Обновлено: '+esc(t.updated_at||t.created_at||"—")+'</small></span><span class="pill">'+esc(statusNames[t.status]||t.status)+'</span></a>').join(""):'<div class="empty">Пока нет обращений. Если понадобится помощь, создай обращение в центре поддержки.</div>';
+ }catch(error){showError(error.message);$("tickets").innerHTML='<div class="empty">Не удалось загрузить обращения.</div>'}
+}
+$("logout").addEventListener("click",async()=>{const b=$("logout");b.disabled=true;try{await api("/auth/logout",{method:"POST",body:"{}"});location.replace("/")}catch(error){showError(error.message);b.disabled=false}});
+init();
+</script>
+</body></html>
