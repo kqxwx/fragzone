@@ -1272,7 +1272,7 @@ setInterval(() => {
   const api = async (path, options={}) => {
     const response = await fetch("/api"+path,{credentials:"same-origin",headers:{"content-type":"application/json"},...options});
     const data = await response.json().catch(()=>({}));
-    if(!response.ok) throw new Error(data.error || "Не удалось выполнить запрос");
+    if(!response.ok) throw new Error([data.error || "Не удалось выполнить запрос", data.errorId ? "Код ошибки: " + data.errorId : ""].filter(Boolean).join("\n"));
     return data;
   };
   const setMode = value => {
