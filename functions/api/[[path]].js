@@ -56,13 +56,13 @@ async function handle(request,env){
  }
  if(path==="auth/logout"&&method==="POST"){const token=getCookie(request);if(token)await env.DB.prepare("DELETE FROM sessions WHERE token_hash=?").bind(await sha256(token)).run();return json({ok:true},200,{"set-cookie":setCookie("",0)});}
  if(path==="tickets"&&method==="POST"){
-  const body=await readBody(request),user=await currentUser(request,env),subject=clean(body.subject,120),message=clean(body.message,5000),name=clean(body.name,80),email=clean(body.email,254).toLowerCase();
+  const body=await readBody(request),user=await currentUser(request,env),subject=clean(body.subject,120),message=clean(body.message,5000);
+  if(!user)return fail("Войдите или создайте аккаунт, чтобы отправить обращение",401);
   if(subject.length<4||message.length<10)return fail("Тема — минимум 4 символа, описание — минимум 10");
-  if(!user&&(!name||!validEmail(email)))return fail("Укажите имя и корректный email");
-  const id=crypto.randomUUID(),accessKey=randomHex(32);
-  await env.DB.prepare(`INSERT INTO tickets(id,user_id,guest_name,guest_email,access_hash,subject,status,priority,created_at,updated_at) VALUES(?,?,?,?,?,?,'open','normal',datetime('now'),datetime('now'))`).bind(id,user?.id||null,user?null:name,user?null:email,user?null:await sha256(accessKey),subject).run();
-  await env.DB.prepare("INSERT INTO comments(id,ticket_id,user_id,author_name,body,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),id,user?.id||null,user?.username||name,message).run();
-  return json({ticket:{id,subject,status:"open"},guestAccessUrl:user?null:`/support/ticket.html?id=${encodeURIComponent(id)}&key=${encodeURIComponent(accessKey)}`},201);
+  const id=crypto.randomUUID();
+  await env.DB.prepare(`INSERT INTO tickets(id,user_id,guest_name,guest_email,access_hash,subject,status,priority,created_at,updated_at) VALUES(?,?,NULL,NULL,NULL,?,'open','normal',datetime('now'),datetime('now'))`).bind(id,user.id,subject).run();
+  await env.DB.prepare("INSERT INTO comments(id,ticket_id,user_id,author_name,body,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),id,user.id,user.username,message).run();
+  return json({ticket:{id,subject,status:"open"}},201);
  }
  if(path==="tickets"&&method==="GET"){
   const user=await currentUser(request,env);if(!user)return fail("Войдите, чтобы просматривать свои обращения",401);

@@ -17,15 +17,15 @@ async function home(){
  $("#accountArea").innerHTML=me.user?'<span>Вы вошли как <b>'+esc(me.user.username)+'</b></span> <button id="logoutBtn" class="fz-btn fz-btn-ghost">Выйти</button>':'<a class="fz-btn fz-login-link" href="#accountPanel">Войти</a>';
  if($("#logoutBtn"))$("#logoutBtn").onclick=async()=>{try{await api("/auth/logout",{method:"POST",body:"{}"});location.reload();}catch(err){notice(err.message,true);}};
  if($("#accountPanel"))$("#accountPanel").hidden=!!me.user;
- const nameField=$("#guestNameField"),emailField=$("#guestEmailField");
- if(nameField)nameField.hidden=!!me.user;
- if(emailField)emailField.hidden=!!me.user;
+ const ticketButton=$("#guestTicketForm button[type=submit], #guestTicketForm button");
+ if($("#ticketAuthHint"))$("#ticketAuthHint").hidden=!!me.user;
+ if(ticketButton)ticketButton.disabled=!me.user;
 
  $("#guestTicketForm").onsubmit=async e=>{
-  e.preventDefault();hideNotice();const f=new FormData(e.currentTarget);
+  e.preventDefault();hideNotice();if(!me.user){notice("Сначала войдите или создайте аккаунт.",true);$("#accountPanel")?.scrollIntoView({behavior:"smooth"});return;}const f=new FormData(e.currentTarget);
   try{
-   const d=await api("/tickets",{method:"POST",body:JSON.stringify({name:f.get("name"),email:f.get("email"),subject:f.get("subject"),message:f.get("message")})});
-   $("#guestResult").innerHTML=d.guestAccessUrl?'Обращение создано. <a href="'+esc(d.guestAccessUrl)+'">Открыть обращение</a>. Сохраните секретную ссылку.':'Обращение создано. <a href="/support/my-tickets.html">Открыть мои обращения</a>.';
+   const d=await api("/tickets",{method:"POST",body:JSON.stringify({subject:f.get("subject"),message:f.get("message")})});
+   $("#guestResult").innerHTML='Обращение создано. <a href="/support/my-tickets.html">Открыть мои обращения</a>.';
    $("#guestResult").hidden=false;e.currentTarget.reset();
   }catch(err){notice(err.message,true);}
  };
