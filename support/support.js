@@ -14,7 +14,7 @@ async function home(){
  try { me=await api("/auth/me"); }
  catch(err) { notice(err.message,true); }
 
- $("#accountArea").innerHTML=me.user?'<span>Вы вошли как <b>'+esc(me.user.username)+'</b></span> <button id="logoutBtn" class="fz-btn fz-btn-ghost">Выйти</button>':'<a href="#accountPanel">Войти / создать аккаунт</a>';
+ $("#accountArea").innerHTML=me.user?'<span>Вы вошли как <b>'+esc(me.user.username)+'</b></span> <button id="logoutBtn" class="fz-btn fz-btn-ghost">Выйти</button>':'<a class="fz-btn fz-login-link" href="#accountPanel">Войти</a>';
  if($("#logoutBtn"))$("#logoutBtn").onclick=async()=>{try{await api("/auth/logout",{method:"POST",body:"{}"});location.reload();}catch(err){notice(err.message,true);}};
  if($("#accountPanel"))$("#accountPanel").hidden=!!me.user;
  const nameField=$("#guestNameField"),emailField=$("#guestEmailField");
