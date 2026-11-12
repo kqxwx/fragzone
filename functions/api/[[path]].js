@@ -118,7 +118,17 @@ async function handle(request,env){
  return fail("Маршрут не найден",404);
 }
 export async function onRequest({request,env}){
- try{return await handle(request,env);}
+ try{
+  const url=new URL(request.url);
+  if(url.pathname==="/api/crypto-diagnostic"&&request.method==="GET"){
+   const password=new TextEncoder().encode("fragzone-runtime-check");
+   const salt=new TextEncoder().encode("diagnostic-salt");
+   const started=performance.now();
+   const key=await new Promise((resolve,reject)=>pbkdf2(password,salt,100000,32,"sha256",(error,derived)=>error?reject(error):resolve(derived)));
+   const elapsedMs=Number((performance.now()-started).toFixed(3));
+   return json({diagnostic:"native-pbkdf2-100k",ok:true,bytes:key.byteLength,elapsedMs},200,{"cache-control":"no-store"});
+  }
+  return await handle(request,env);
  catch(error){
   const errorId=crypto.randomUUID();
   const message=String(error?.message||"Unknown error");
