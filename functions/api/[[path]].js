@@ -1,4 +1,4 @@
-import { pbkdf2 } from "node:crypto";
+import { createHmac } from "node:crypto";
 
 const COOKIE = "fz_session";
 const SESSION_DAYS = 14;
@@ -11,18 +11,36 @@ function json(data, status = 200, headers = {}) {
 function fail(error,status=400){return json({error},status);}
 function randomHex(bytes=32){const value=new Uint8Array(bytes);crypto.getRandomValues(value);return [...value].map(x=>x.toString(16).padStart(2,"0")).join("");}
 async function sha256(value){const hash=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value));return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,"0")).join("");}
+function derivePbkdf2HmacSha256(passwordBytes,salt,iterations){
+ const block=new Uint8Array(salt.length+4);
+ block.set(salt);
+ block[block.length-1]=1;
+ let u=createHmac("sha256",passwordBytes).update(block).digest();
+ const result=Uint8Array.from(u);
+ for(let i=1;i<iterations;i++){
+  u=createHmac("sha256",passwordBytes).update(u).digest();
+  for(let j=0;j<result.length;j++)result[j]^=u[j];
+ }
+ return result;
+}
 async function derivePassword(password,saltHex){
  const salt=Uint8Array.from(saltHex.match(/.{2}/g),x=>parseInt(x,16));
  const passwordBytes=new TextEncoder().encode(password);
- const bits=await new Promise((resolve,reject)=>{
-  pbkdf2(passwordBytes,salt,PBKDF2_ITERATIONS,32,"sha256",(error,derivedKey)=>{
-   if(error)reject(error);
-   else resolve(derivedKey);
-  });
- });
- return [...new Uint8Array(bits)].map(x=>x.toString(16).padStart(2,"0")).join("");
+ const bits=derivePbkdf2HmacSha256(passwordBytes,salt,PBKDF2_ITERATIONS);
+ return [...bits].map(x=>x.toString(16).padStart(2,"0")).join("");
 }
-async function verifyPassword(password,encoded){if(!encoded||!encoded.includes(":"))return false;const [salt,expected]=encoded.split(":");return(await derivePassword(password,salt))===expected;}
+function constantTimeHexEqual(actual,expected){
+ if(typeof expected!=="string"||actual.length!==expected.length)return false;
+ let difference=0;
+ for(let i=0;i<actual.length;i++)difference|=actual.charCodeAt(i)^expected.charCodeAt(i);
+ return difference===0;
+}
+async function verifyPassword(password,encoded){
+ if(typeof encoded!=="string"||!/^([0-9a-f]{32}):([0-9a-f]{64})$/i.test(encoded))return false;
+ const [salt,expected]=encoded.split(":");
+ const actual=await derivePassword(password,salt);
+ return constantTimeHexEqual(actual,expected.toLowerCase());
+}
 function setCookie(token,age=SESSION_DAYS*86400){return `${COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${age}`;}
 function getCookie(request){const part=(request.headers.get("Cookie")||"").split(";").map(x=>x.trim()).find(x=>x.startsWith(COOKIE+"="));return part?part.slice(COOKIE.length+1):null;}
 function clean(value,max){return typeof value==="string"?value.trim().replace(/\u0000/g,"").slice(0,max):"";}
@@ -118,7 +136,9 @@ async function handle(request,env){
  return fail("Маршрут не найден",404);
 }
 export async function onRequest({request,env}){
- try{return await handle(request,env);}
+ try{
+  return await handle(request,env);
+ }
  catch(error){
   const errorId=crypto.randomUUID();
   const message=String(error?.message||"Unknown error");
