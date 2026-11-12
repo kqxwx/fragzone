@@ -1,4 +1,4 @@
-import { createHmac, pbkdf2 } from "node:crypto";
+import { createHmac } from "node:crypto";
 
 const COOKIE = "fz_session";
 const SESSION_DAYS = 14;
@@ -29,7 +29,18 @@ async function derivePassword(password,saltHex){
  const bits=derivePbkdf2HmacSha256(passwordBytes,salt,PBKDF2_ITERATIONS);
  return [...bits].map(x=>x.toString(16).padStart(2,"0")).join("");
 }
-async function verifyPassword(password,encoded){if(!encoded||!encoded.includes(":"))return false;const [salt,expected]=encoded.split(":");return(await derivePassword(password,salt))===expected;}
+function constantTimeHexEqual(actual,expected){
+ if(typeof expected!=="string"||actual.length!==expected.length)return false;
+ let difference=0;
+ for(let i=0;i<actual.length;i++)difference|=actual.charCodeAt(i)^expected.charCodeAt(i);
+ return difference===0;
+}
+async function verifyPassword(password,encoded){
+ if(typeof encoded!=="string"||!/^([0-9a-f]{32}):([0-9a-f]{64})$/i.test(encoded))return false;
+ const [salt,expected]=encoded.split(":");
+ const actual=await derivePassword(password,salt);
+ return constantTimeHexEqual(actual,expected.toLowerCase());
+}
 function setCookie(token,age=SESSION_DAYS*86400){return `${COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${age}`;}
 function getCookie(request){const part=(request.headers.get("Cookie")||"").split(";").map(x=>x.trim()).find(x=>x.startsWith(COOKIE+"="));return part?part.slice(COOKIE.length+1):null;}
 function clean(value,max){return typeof value==="string"?value.trim().replace(/\u0000/g,"").slice(0,max):"";}
@@ -126,21 +137,6 @@ async function handle(request,env){
 }
 export async function onRequest({request,env}){
  try{
-  const url=new URL(request.url);
-  if(url.pathname==="/api/crypto-diagnostic"&&request.method==="GET"){
-   const password=new TextEncoder().encode("fragzone-runtime-check");
-   const salt=new TextEncoder().encode("diagnostic-salt");
-   const native100k=await new Promise((resolve,reject)=>pbkdf2(password,salt,100000,32,"sha256",(error,key)=>error?reject(error):resolve(key)));
-   const test=(iterations)=>{
-    const started=performance.now();
-    try{
-     const key=derivePbkdf2HmacSha256(password,salt,iterations);
-     const matchesNative=iterations===100000?key.every((value,index)=>value===native100k[index]):undefined;
-     return {ok:true,bytes:key.byteLength,elapsedMs:Number((performance.now()-started).toFixed(2)),...(matchesNative===undefined?{}:{matchesNative})};
-    }catch(error){return {ok:false,name:error?.name||"Error",message:String(error?.message||error),elapsedMs:Number((performance.now()-started).toFixed(2))};}
-   };
-   return json({diagnostic:"pbkdf2-hmac-runtime",baseline100k:test(100000),target210k:test(PBKDF2_ITERATIONS)},200,{"cache-control":"no-store"});
-  }
   return await handle(request,env);
  }
  catch(error){
