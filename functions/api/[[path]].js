@@ -60,7 +60,7 @@ async function currentUser(request, env) {
 }
 async function createSession(userId, env) {
   const token = randomHex(32);
-  const expires = new Date(Date.now() + SESSION_DAYS * 86400000).toISOString();
+  const expires = new Date(Date.now() + SESSION_DAYS * 86400000).toISOString().slice(0, 19).replace("T", " ");
   await env.DB.prepare("INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)")
     .bind(await sha256(token), userId, expires).run();
   return token;
