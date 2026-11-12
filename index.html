@@ -578,7 +578,7 @@ footer a {
   <div class="breadcrumb">FRAGZONE / <span data-t="monitor">Live monitoring</span></div>
 
   <div class="top-right">
-    <a class="site-url" href="#accountPanel">Войти</a>
+    <a class="site-url" href="/account/" id="accountTopLink">Личный кабинет</a>
     <a class="site-url" href="/support/" data-t="support">Поддержка</a>
     <a class="site-url" href="https://fragzone.pages.dev/" target="_blank" rel="noopener">
       FRAGZONE ↗
@@ -1304,9 +1304,11 @@ setInterval(() => {
       document.getElementById("accountDescription").textContent="Аккаунт активен. Теперь ты можешь создавать обращения в поддержку.";
       userArea.hidden=false;
       const label=document.createElement("span"); label.textContent="Вошли как "+result.user.username;
+      const cabinet=document.createElement("a"); cabinet.href="/account/"; cabinet.className="site-url"; cabinet.textContent="Личный кабинет";
+      const topLink=document.getElementById("accountTopLink"); if(topLink) topLink.textContent="Кабинет · "+result.user.username;
       const logout=document.createElement("button"); logout.type="button"; logout.textContent="Выйти";
       logout.addEventListener("click",async()=>{logout.disabled=true;try{await api("/auth/logout",{method:"POST",body:"{}"});location.reload();}catch(error){logout.disabled=false;alert(error.message);}});
-      userArea.replaceChildren(label,logout);
+      userArea.replaceChildren(label,cabinet,logout);
     } catch(error) { say(error.message,true); }
   }
   setMode("login"); loadAccount();
