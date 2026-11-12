@@ -1,3 +1,5 @@
+import { pbkdf2 } from "node:crypto";
+
 const COOKIE = "fz_session";
 const SESSION_DAYS = 14;
 const PBKDF2_ITERATIONS = 210000;
@@ -11,15 +13,20 @@ function randomHex(bytes=32){const value=new Uint8Array(bytes);crypto.getRandomV
 async function sha256(value){const hash=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value));return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,"0")).join("");}
 async function derivePassword(password,saltHex){
  const salt=Uint8Array.from(saltHex.match(/.{2}/g),x=>parseInt(x,16));
- const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(password),"PBKDF2",false,["deriveBits"]);
- const bits=await crypto.subtle.deriveBits({name:"PBKDF2",salt,iterations:PBKDF2_ITERATIONS,hash:"SHA-256"},key,256);
+ const passwordBytes=new TextEncoder().encode(password);
+ const bits=await new Promise((resolve,reject)=>{
+  pbkdf2(passwordBytes,salt,PBKDF2_ITERATIONS,32,"sha256",(error,derivedKey)=>{
+   if(error)reject(error);
+   else resolve(derivedKey);
+  });
+ });
  return [...new Uint8Array(bits)].map(x=>x.toString(16).padStart(2,"0")).join("");
 }
 async function verifyPassword(password,encoded){if(!encoded||!encoded.includes(":"))return false;const [salt,expected]=encoded.split(":");return(await derivePassword(password,salt))===expected;}
 function setCookie(token,age=SESSION_DAYS*86400){return `${COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${age}`;}
 function getCookie(request){const part=(request.headers.get("Cookie")||"").split(";").map(x=>x.trim()).find(x=>x.startsWith(COOKIE+"="));return part?part.slice(COOKIE.length+1):null;}
-function clean(value,max){return typeof value==="string"?value.trim().replace(/\u0000/g,"").slice(0,max):"";}
-function validEmail(value){return value.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);}
+function clean(value,max){return typeof value==="string"?value.trim().replace(/\\u0000/g,"").slice(0,max):"";}
+function validEmail(value){return value.length<=254&&/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value);}
 async function readBody(request){if(Number(request.headers.get("content-length")||0)>MAX_BODY)throw new Error("Слишком большой запрос");return request.json();}
 async function currentUser(request,env){
  const token=getCookie(request);if(!token)return null;
@@ -33,7 +40,7 @@ function viewUser(user){return{id:user.id,email:user.email,username:user.usernam
 
 async function handle(request,env){
  if(!env.DB)return fail("База D1 не подключена. В Cloudflare Pages → Settings → Bindings добавьте D1 database binding с именем DB.",503);
- const url=new URL(request.url),path=url.pathname.replace(/^\/api\/?/,"").replace(/\/+$/,""),method=request.method.toUpperCase();
+ const url=new URL(request.url),path=url.pathname.replace(/^\\/api\\/?/,"").replace(/\\/+$/,""),method=request.method.toUpperCase();
  if(method==="OPTIONS")return new Response(null,{status:204});
  const origin=request.headers.get("Origin");if(origin&&origin!==url.origin)return fail("Недопустимый источник запроса",403);
  if(path==="auth/me"&&method==="GET"){const user=await currentUser(request,env);return json({user:user?viewUser(user):null});}
@@ -68,7 +75,7 @@ async function handle(request,env){
   const user=await currentUser(request,env);if(!user)return fail("Войдите, чтобы просматривать свои обращения",401);
   const result=await env.DB.prepare("SELECT id,subject,status,priority,created_at,updated_at FROM tickets WHERE user_id=? ORDER BY updated_at DESC LIMIT 100").bind(user.id).all();return json({tickets:result.results});
  }
- const ticketMatch=path.match(/^tickets\/([0-9a-f-]{36})$/i);
+ const ticketMatch=path.match(/^tickets\\/([0-9a-f-]{36})$/i);
  if(ticketMatch&&method==="GET"){
   const id=ticketMatch[1],user=await currentUser(request,env),key=url.searchParams.get("key")||"",ticket=await env.DB.prepare("SELECT * FROM tickets WHERE id=?").bind(id).first();
   if(!ticket)return fail("Обращение не найдено",404);
@@ -77,7 +84,7 @@ async function handle(request,env){
   const comments=await env.DB.prepare("SELECT id,author_name,body,created_at FROM comments WHERE ticket_id=? ORDER BY created_at").bind(id).all();
   return json({ticket:{id:ticket.id,user_id:ticket.user_id,subject:ticket.subject,status:ticket.status,priority:ticket.priority,created_at:ticket.created_at},comments:comments.results});
  }
- const commentMatch=path.match(/^tickets\/([0-9a-f-]{36})\/comments$/i);
+ const commentMatch=path.match(/^tickets\\/([0-9a-f-]{36})\\/comments$/i);
  if(commentMatch&&method==="POST"){
   const user=await currentUser(request,env);if(!user)return fail("Войдите в аккаунт, чтобы комментировать",401);
   const id=commentMatch[1],ticket=await env.DB.prepare("SELECT * FROM tickets WHERE id=?").bind(id).first();
@@ -101,7 +108,7 @@ async function handle(request,env){
   const status=url.searchParams.get("status")||"all",result=status==="all"?await env.DB.prepare("SELECT * FROM tickets ORDER BY updated_at DESC LIMIT 300").all():await env.DB.prepare("SELECT * FROM tickets WHERE status=? ORDER BY updated_at DESC LIMIT 300").bind(status).all();
   return json({tickets:result.results});
  }
- const adminTicket=path.match(/^admin\/tickets\/([0-9a-f-]{36})$/i);
+ const adminTicket=path.match(/^admin\\/tickets\\/([0-9a-f-]{36})$/i);
  if(adminTicket&&method==="PATCH"){
   const user=await currentUser(request,env);if(user?.role!=="admin")return fail("Требуется вход администратора",403);
   const body=await readBody(request),status=["open","in_progress","answered","closed"].includes(body.status)?body.status:null,priority=["low","normal","high","urgent"].includes(body.priority)?body.priority:null;
