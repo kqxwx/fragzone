@@ -118,7 +118,22 @@ async function handle(request,env){
  return fail("Маршрут не найден",404);
 }
 export async function onRequest({request,env}){
- try{return await handle(request,env);}
+ try{
+  const url=new URL(request.url);
+  if(url.pathname==="/api/crypto-diagnostic"&&request.method==="GET"){
+   const test=(iterations)=>new Promise(resolve=>{
+    try{
+     pbkdf2(new TextEncoder().encode("fragzone-runtime-check"),new TextEncoder().encode("diagnostic-salt"),iterations,32,"sha256",(error,key)=>{
+      resolve(error?{ok:false,name:error.name,message:error.message}:{ok:true,bytes:key.byteLength});
+     });
+    }catch(error){resolve({ok:false,name:error?.name||"Error",message:String(error?.message||error)});}
+   });
+   const baseline=await test(100000);
+   const target=await test(PBKDF2_ITERATIONS);
+   return json({diagnostic:"pbkdf2-runtime",baseline100k:baseline,target210k:target},200,{"cache-control":"no-store"});
+  }
+  return await handle(request,env);
+ }
  catch(error){
   const errorId=crypto.randomUUID();
   const message=String(error?.message||"Unknown error");
