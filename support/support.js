@@ -10,21 +10,34 @@ function notice(message,bad=false){const el=$("#notice");if(el){el.textContent=m
 function hideNotice(){if($("#notice"))$("#notice").hidden=true;}
 
 async function home(){
- const me=await api("/auth/me");
- $("#accountArea").innerHTML=me.user?'<span>Вы вошли как <b>'+esc(me.user.username)+'</b></span> <button id="logoutBtn" class="fz-btn fz-btn-ghost">Выйти</button>':'<a href="/support/auth.html">Войти / регистрация</a>';
- if($("#logoutBtn"))$("#logoutBtn").onclick=async()=>{await api("/auth/logout",{method:"POST",body:"{}"});location.reload();};
+ let me={user:null};
+ try { me=await api("/auth/me"); }
+ catch(err) { notice(err.message,true); }
+
+ $("#accountArea").innerHTML=me.user?'<span>Вы вошли как <b>'+esc(me.user.username)+'</b></span> <button id="logoutBtn" class="fz-btn fz-btn-ghost">Выйти</button>':'<a href="#accountPanel">Войти / создать аккаунт</a>';
+ if($("#logoutBtn"))$("#logoutBtn").onclick=async()=>{try{await api("/auth/logout",{method:"POST",body:"{}"});location.reload();}catch(err){notice(err.message,true);}};
+ if($("#accountPanel"))$("#accountPanel").hidden=!!me.user;
+ const nameField=$("#guestNameField"),emailField=$("#guestEmailField");
+ if(nameField)nameField.hidden=!!me.user;
+ if(emailField)emailField.hidden=!!me.user;
+
  $("#guestTicketForm").onsubmit=async e=>{
   e.preventDefault();hideNotice();const f=new FormData(e.currentTarget);
-  try{const d=await api("/tickets",{method:"POST",body:JSON.stringify({name:f.get("name"),email:f.get("email"),subject:f.get("subject"),message:f.get("message")})});
-   $("#guestResult").innerHTML=d.guestAccessUrl?'Обращение создано. <a href="'+esc(d.guestAccessUrl)+'">Открыть обращение</a>. Сохраните секретную ссылку.':'Обращение создано. <a href="/support/my-tickets.html">Мои обращения</a>.';
+  try{
+   const d=await api("/tickets",{method:"POST",body:JSON.stringify({name:f.get("name"),email:f.get("email"),subject:f.get("subject"),message:f.get("message")})});
+   $("#guestResult").innerHTML=d.guestAccessUrl?'Обращение создано. <a href="'+esc(d.guestAccessUrl)+'">Открыть обращение</a>. Сохраните секретную ссылку.':'Обращение создано. <a href="/support/my-tickets.html">Открыть мои обращения</a>.';
    $("#guestResult").hidden=false;e.currentTarget.reset();
   }catch(err){notice(err.message,true);}
  };
- if(me.user){const d=await api("/tickets");$("#myTickets").innerHTML=d.tickets.map(t=>'<a class="fz-ticket" href="/support/my-ticket.html?id='+encodeURIComponent(t.id)+'"><b>'+esc(t.subject)+'</b><span>'+esc(t.status)+' · '+esc(t.updated_at)+'</span></a>').join("")||"<p>Обращений пока нет.</p>";$("#myTicketsWrap").hidden=false;}
+ if(me.user){
+  try {const d=await api("/tickets");$("#myTickets").innerHTML=d.tickets.map(t=>'<a class="fz-ticket" href="/support/my-ticket.html?id='+encodeURIComponent(t.id)+'"><b>'+esc(t.subject)+'</b><span>'+esc(t.status)+' · '+esc(t.updated_at)+'</span></a>').join("")||"<p>Обращений пока нет.</p>";$("#myTicketsWrap").hidden=false;}
+  catch(err){notice(err.message,true);}
+ }
+ if($("#authForm"))auth();
 }
 function auth(){
  const mode=$("#authMode"),form=$("#authForm");
- function setMode(v){mode.value=v;$("#authTitle").textContent=v==="register"?"Создать аккаунт":"Вход";$("#usernameField").hidden=v!=="register";$("#authSubmit").textContent=v==="register"?"Зарегистрироваться":"Войти";$("#authSwitch").textContent=v==="register"?"Уже есть аккаунт? Войти":"Нет аккаунта? Зарегистрироваться";}
+ function setMode(v){mode.value=v;$("#authTitle").textContent=v==="register"?"Создать аккаунт":"Вход";$("#usernameField").hidden=v!=="register";$("#authUsername").required=v==="register";$("#authSubmit").textContent=v==="register"?"Зарегистрироваться":"Войти";$("#authSwitch").textContent=v==="register"?"Уже есть аккаунт? Войти":"Нет аккаунта? Создайте его";}
  setMode("login");$("#authSwitch").onclick=()=>setMode(mode.value==="login"?"register":"login");
  form.onsubmit=async e=>{e.preventDefault();hideNotice();const f=new FormData(form);try{await api("/auth/"+mode.value,{method:"POST",body:JSON.stringify({email:f.get("email"),password:f.get("password"),username:f.get("username")})});location.href="/support/";}catch(err){notice(err.message,true);}};
 }
