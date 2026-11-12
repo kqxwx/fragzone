@@ -136,8 +136,8 @@ export async function onRequest({request,env}){
     try{
      const key=derivePbkdf2HmacSha256(password,salt,iterations);
      const matchesNative=iterations===100000?key.every((value,index)=>value===native100k[index]):undefined;
-     return {ok:true,bytes:key.byteLength,elapsedMs:Math.round(performance.now()-started),...(matchesNative===undefined?{}:{matchesNative})};
-    }catch(error){return {ok:false,name:error?.name||"Error",message:String(error?.message||error),elapsedMs:Math.round(performance.now()-started)};}
+     return {ok:true,bytes:key.byteLength,elapsedMs:Number((performance.now()-started).toFixed(2)),...(matchesNative===undefined?{}:{matchesNative})};
+    }catch(error){return {ok:false,name:error?.name||"Error",message:String(error?.message||error),elapsedMs:Number((performance.now()-started).toFixed(2))};}
    };
    return json({diagnostic:"pbkdf2-hmac-runtime",baseline100k:test(100000),target210k:test(PBKDF2_ITERATIONS)},200,{"cache-control":"no-store"});
   }
