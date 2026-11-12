@@ -1,3 +1,5 @@
+import { pbkdf2 } from "node:crypto";
+
 const COOKIE = "fz_session";
 const SESSION_DAYS = 14;
 const PBKDF2_ITERATIONS = 210000;
@@ -11,8 +13,13 @@ function randomHex(bytes=32){const value=new Uint8Array(bytes);crypto.getRandomV
 async function sha256(value){const hash=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value));return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,"0")).join("");}
 async function derivePassword(password,saltHex){
  const salt=Uint8Array.from(saltHex.match(/.{2}/g),x=>parseInt(x,16));
- const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(password),"PBKDF2",false,["deriveBits"]);
- const bits=await crypto.subtle.deriveBits({name:"PBKDF2",salt,iterations:PBKDF2_ITERATIONS,hash:"SHA-256"},key,256);
+ const passwordBytes=new TextEncoder().encode(password);
+ const bits=await new Promise((resolve,reject)=>{
+  pbkdf2(passwordBytes,salt,PBKDF2_ITERATIONS,32,"sha256",(error,derivedKey)=>{
+   if(error)reject(error);
+   else resolve(derivedKey);
+  });
+ });
  return [...new Uint8Array(bits)].map(x=>x.toString(16).padStart(2,"0")).join("");
 }
 async function verifyPassword(password,encoded){if(!encoded||!encoded.includes(":"))return false;const [salt,expected]=encoded.split(":");return(await derivePassword(password,salt))===expected;}
