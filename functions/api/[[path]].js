@@ -113,8 +113,11 @@ async function handle(request,env){
 export async function onRequest({request,env}){
  try{return await handle(request,env);}
  catch(error){
-  const message=String(error?.message||"");
-  if(/no such table/i.test(message))return fail("Таблицы поддержки не созданы. Выполните schema.sql в подключённой базе D1.",503);
-  return fail("Внутренняя ошибка сервера. Проверьте D1 binding DB и таблицы schema.sql.",500);
+  const errorId=crypto.randomUUID();
+  const message=String(error?.message||"Unknown error");
+  // Log only diagnostic metadata; never log request bodies, passwords, cookies, or secrets.
+  console.error("FRAGZONE_API_ERROR", {errorId,name:error?.name||"Error",message});
+  if(/no such table/i.test(message))return json({error:"Таблицы поддержки не созданы. Выполните schema.sql в подключённой базе D1.",errorId},503);
+  return json({error:"Внутренняя ошибка сервера. Передайте поддержке код ошибки.",errorId},500);
  }
 }
