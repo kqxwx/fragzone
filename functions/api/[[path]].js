@@ -151,7 +151,7 @@ async function handle(request,env){
   return json({ok:true,user:{id:target.id,email:target.email,role}});
  }
  if(path==="admin/tickets"&&method==="GET"){
-  const user=await currentUser(request,env);if(user?.role!=="admin")return fail("Требуется вход администратора",403);
+  const user=await currentUser(request,env);if(!isAdmin(user,env))return fail("Требуется вход администратора",403);
   const status=url.searchParams.get("status")||"all";if(!["all","open","in_progress","answered","closed"].includes(status))return fail("Недопустимый фильтр статуса");
   const sql="SELECT t.*,u.email AS user_email,u.username AS user_name,(SELECT COUNT(*) FROM comments c WHERE c.ticket_id=t.id) AS comment_count FROM tickets t LEFT JOIN users u ON u.id=t.user_id "+(status==="all"?"":"WHERE t.status=? ")+"ORDER BY t.updated_at DESC LIMIT 300";
   const result=status==="all"?await env.DB.prepare(sql).all():await env.DB.prepare(sql).bind(status).all();
@@ -159,7 +159,7 @@ async function handle(request,env){
  }
  const adminTicket=path.match(/^admin\/tickets\/([0-9a-f-]{36})$/i);
  if(adminTicket&&method==="PATCH"){
-  const user=await currentUser(request,env);if(user?.role!=="admin")return fail("Требуется вход администратора",403);
+  const user=await currentUser(request,env);if(!isAdmin(user,env))return fail("Требуется вход администратора",403);
   const body=await readBody(request),status=["open","in_progress","answered","closed"].includes(body.status)?body.status:null,priority=["low","normal","high","urgent"].includes(body.priority)?body.priority:null;
   if(!status&&!priority)return fail("Нет допустимых изменений");
   const result=await env.DB.prepare("UPDATE tickets SET status=COALESCE(?,status),priority=COALESCE(?,priority),updated_at=datetime('now') WHERE id=?").bind(status,priority,adminTicket[1]).run();if(!result.meta?.changes)return fail("Обращение не найдено",404);return json({ok:true});
