@@ -579,6 +579,7 @@ footer a {
 
   <div class="top-right">
     <a class="site-url" href="/account/" id="accountTopLink">Личный кабинет</a>
+    <a class="site-url" href="/support/admin.html" id="adminTopLink" hidden>Админ-панель</a>
     <a class="site-url" href="/support/" data-t="support">Поддержка</a>
     <a class="site-url" href="https://fragzone.pages.dev/" target="_blank" rel="noopener">
       FRAGZONE ↗
@@ -1306,6 +1307,7 @@ setInterval(() => {
       const label=document.createElement("span"); label.textContent="Вошли как "+result.user.username;
       const cabinet=document.createElement("a"); cabinet.href="/account/"; cabinet.className="site-url"; cabinet.textContent="Личный кабинет";
       const topLink=document.getElementById("accountTopLink"); if(topLink) topLink.textContent="Кабинет · "+result.user.username;
+      const adminLink=document.getElementById("adminTopLink"); if(adminLink) adminLink.hidden=!["admin","owner"].includes(result.user.role);
       const logout=document.createElement("button"); logout.type="button"; logout.textContent="Выйти";
       logout.addEventListener("click",async()=>{logout.disabled=true;try{await api("/auth/logout",{method:"POST",body:"{}"});location.reload();}catch(error){logout.disabled=false;alert(error.message);}});
       userArea.replaceChildren(label,cabinet,logout);
