@@ -10,7 +10,7 @@ header{display:flex;justify-content:space-between;align-items:center;gap:18px;pa
 .columns{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,.8fr);gap:15px;margin-top:22px}.section{min-width:0}.section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}.section h2{font-size:17px;margin:0}.section-head a{font-size:11px;color:var(--green)}.ticket-list{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:5px 17px}.ticket{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid #202b36}.ticket:last-child{border:0}.ticket-main{min-width:0}.ticket strong{display:block;margin-bottom:6px;overflow-wrap:anywhere}.ticket small{color:var(--muted);font-size:10px}.pill{border:1px solid #465a39;background:#1b2a1e;color:var(--green);border-radius:99px;padding:6px 9px;font-size:10px;white-space:nowrap}.pill.closed{color:#a9b5c1;border-color:#3b4650;background:#202a34}.empty{padding:20px 10px;color:var(--muted);line-height:1.6;font-size:12px}.side-stack{display:grid;gap:13px;align-content:start}.profile{display:flex;align-items:center;gap:13px}.avatar{width:48px;height:48px;display:grid;place-items:center;border-radius:15px;background:linear-gradient(135deg,#baff60,#5f9b38);color:#10170c;font-size:19px;font-weight:950}.profile strong{display:block;font-size:14px}.profile small{display:block;color:var(--muted);margin-top:5px;overflow-wrap:anywhere}.quick-links{display:grid;gap:8px;margin-top:13px}.quick-links a{display:flex;justify-content:space-between;align-items:center;padding:12px;border:1px solid var(--line);border-radius:10px;background:#0c131b;font-size:11px}.quick-links a:hover{border-color:#668748}.favorites-card p{font-size:11px;line-height:1.6;color:var(--muted)}.footer{display:flex;justify-content:space-between;gap:12px;margin-top:30px;color:#5d6c79;font-size:9px;letter-spacing:1px}
 @media(max-width:800px){.columns{grid-template-columns:1fr}}@media(max-width:620px){.wrap{padding:14px}.grid{grid-template-columns:1fr}.hero{padding:22px}.hero-bottom{align-items:flex-start;flex-direction:column}header{align-items:flex-start;flex-direction:column}.ticket{align-items:flex-start}.ticket .pill{margin-left:auto}.footer{flex-direction:column}}
 </style></head>
-<body><div class="wrap">
+<body><div class="wrap" id="accountApp" hidden>
 <header><a class="logo" href="/">FRAG<span>ZONE</span></a><nav><a class="nav-link" href="/">Каталог серверов</a><a class="nav-link" href="/support/">Поддержка</a><a class="nav-link admin" id="adminLink" href="/support/admin.html" hidden>⚙ Админ-панель</a><button class="btn" id="logout">Выйти ↗</button></nav></header>
 <main>
 <section class="hero"><div class="hero-bottom"><div><div class="eyebrow">YOUR FRAGZONE SPACE</div><h1>Личный кабинет</h1><p id="welcome">Загружаем профиль и последние события…</p></div><span class="role-pill" id="rolePill">ACCOUNT</span></div></section>
@@ -39,6 +39,7 @@ async function init(){
   const me=await api("/auth/me");
   if(!me.user){location.replace("/#accountPanel");return}
   const user=me.user,isAdmin=["admin","owner"].includes(user.role);
+  $("accountApp").hidden=false;
   $("welcome").textContent="Добро пожаловать, "+user.username+". Здесь твой профиль, обращения и быстрые действия.";
   $("username").textContent=user.username;$("email").textContent=user.email;$("avatar").textContent=(user.username||"F").trim().charAt(0).toUpperCase();
   $("rolePill").textContent=user.role==="owner"?"ВЛАДЕЛЕЦ":user.role==="admin"?"АДМИНИСТРАТОР":"ИГРОК";
@@ -48,7 +49,7 @@ async function init(){
   const data=await api("/tickets"),items=Array.isArray(data.tickets)?data.tickets:[];
   $("ticketCount").textContent=items.length;
   $("tickets").innerHTML=items.length?items.slice(0,6).map(t=>'<a class="ticket" href="/support/my-ticket.html?id='+encodeURIComponent(t.id)+'"><span class="ticket-main"><strong>'+esc(t.subject)+'</strong><small>Обновлено: '+esc(t.updated_at||t.created_at||"—")+'</small></span><span class="pill '+(t.status==="closed"?"closed":"")+'">'+esc(statusNames[t.status]||t.status)+'</span></a>').join(""):'<div class="empty">Пока нет обращений. Создай первое обращение в центре поддержки — оно появится здесь.</div>';
- }catch(error){showError(error.message);$("tickets").innerHTML='<div class="empty">Не удалось загрузить обращения.</div>'}
+ }catch(error){$("accountApp").hidden=false;showError(error.message);$("tickets").innerHTML='<div class="empty">Не удалось загрузить обращения.</div>'}
 }
 $("logout").addEventListener("click",async()=>{const b=$("logout");b.disabled=true;try{await api("/auth/logout",{method:"POST",body:"{}"});location.replace("/")}catch(error){showError(error.message);b.disabled=false}});
 init();
