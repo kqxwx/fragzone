@@ -30,10 +30,6 @@ async function home(){
    const d=await api("/tickets",{method:"POST",body:JSON.stringify({subject,message:f.get("message")})});
    $("#guestResult").innerHTML='Обращение отправлено! <a href="/support/my-tickets.html">Посмотреть мои обращения</a>.';
    $("#guestResult").hidden=false;form.reset();
-   if($("#myTicketsWrap")&&!$("#myTicketsWrap").hidden){
-    const list=await api("/tickets");
-    $("#myTickets").innerHTML=list.tickets.map(t=>'<a class="fz-ticket" href="/support/my-ticket.html?id='+encodeURIComponent(t.id)+'"><b>'+esc(t.subject)+'</b><span>'+esc(t.status)+' · '+esc(t.updated_at)+'</span></a>').join("")||"<p>Обращений пока нет.</p>";
-   }
   }catch(err){notice(err.message,true);}
   finally{button.disabled=false;button.textContent=originalText;}
  };
