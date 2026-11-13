@@ -314,6 +314,17 @@ button { cursor:pointer; }
   background:#202d3a;
 }
 
+.popular-game-icon {
+  width:48px;
+  height:48px;
+  flex-shrink:0;
+  display:grid;
+  place-items:center;
+  border-radius:8px;
+  background:linear-gradient(145deg,#315d32,#182f20);
+  font-size:27px;
+}
+
 .popular-game-info { min-width:0; }
 
 .popular-game-info strong {
@@ -759,7 +770,7 @@ const API = "https://gsm.kuryzhev.cloud/api";
 
 const games = [
   {id:"cs2",name:"Counter-Strike 2",short:"CS2",app:730},
-  {id:"minecraft",name:"Minecraft",short:"MC",image:"https://upload.wikimedia.org/wikipedia/en/5/51/Minecraft_cover.png"},
+  {id:"minecraft",name:"Minecraft",short:"MC",icon:"⛏️"},
   {id:"rust",name:"Rust",short:"RUST",app:252490},
   {id:"dayz",name:"DayZ",short:"DAYZ",app:221100},
   {id:"gmod",name:"Garry's Mod",short:"GMOD",app:4000},
@@ -890,8 +901,10 @@ function buildPopularGames() {
   document.getElementById("popularGames").innerHTML = visible.map(({game,count}) => `
       <button class="popular-game ${game.id === currentGame ? "active" : ""}"
               onclick="selectGame('${game.id}')">
-        <img src="${gameImage(game)}" alt="${esc(game.name)}"
-             loading="lazy" onerror="this.style.display='none'">
+        ${game.icon
+          ? `<span class="popular-game-icon" aria-hidden="true">${game.icon}</span>`
+          : `<img src="${gameImage(game)}" alt="${esc(game.name)}"
+                 loading="lazy" onerror="this.style.display='none'">`}
         <span class="popular-game-info">
           <strong>${esc(game.name)}</strong>
           <small>${fmt(count)} ${t("servers")}</small>
@@ -1126,7 +1139,11 @@ function renderRows() {
   const tbody = document.getElementById("rows");
   const query = document.getElementById("search").value.trim().toLowerCase();
 
-  let list = serverItems.slice();
+  // Скрываем пустые серверы: показываем только записи с известным онлайном больше нуля.
+  let list = serverItems.filter(server => {
+    const players = Number(server.players);
+    return Number.isFinite(players) && players > 0;
+  });
 
   if (pageMode === "favorites") {
     list = list.filter(s => favorites.includes(String(s.slug)));
