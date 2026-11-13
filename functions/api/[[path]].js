@@ -46,6 +46,7 @@ async function createSession(userId,env){
  await env.DB.prepare("INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)").bind(await sha256(token),userId,expires).run();return token;
 }
 function isOwner(user,env){return !!user&&clean(env.ADMIN_EMAIL,254).toLowerCase()===String(user.email||'').toLowerCase();}
+function isAdmin(user,env){return !!user&&(user.role==="admin"||isOwner(user,env));}
 function viewUser(user,env){const owner=isOwner(user,env);return{id:user.id,email:user.email,username:user.username,role:owner?'owner':user.role,isOwner:owner};}
 
 async function handle(request,env){
@@ -92,7 +93,7 @@ async function handle(request,env){
  if(ticketMatch&&method==="GET"){
   const id=ticketMatch[1],user=await currentUser(request,env),key=url.searchParams.get("key")||"",ticket=await env.DB.prepare("SELECT * FROM tickets WHERE id=?").bind(id).first();
   if(!ticket)return fail("Обращение не найдено",404);
-  const allowed=user?.role==="admin"||(user&&ticket.user_id===user.id)||(key&&ticket.access_hash&&await sha256(key)===ticket.access_hash);
+  const allowed=isAdmin(user,env)||(user&&ticket.user_id===user.id)||(key&&ticket.access_hash&&await sha256(key)===ticket.access_hash);
   if(!allowed)return fail("Нет доступа к обращению",403);
   const comments=await env.DB.prepare("SELECT id,author_name,body,created_at FROM comments WHERE ticket_id=? ORDER BY created_at").bind(id).all();
   return json({ticket:{id:ticket.id,user_id:ticket.user_id,subject:ticket.subject,status:ticket.status,priority:ticket.priority,created_at:ticket.created_at},comments:comments.results});
@@ -102,7 +103,7 @@ async function handle(request,env){
   const user=await currentUser(request,env);if(!user)return fail("Войдите в аккаунт, чтобы комментировать",401);
   const id=commentMatch[1],ticket=await env.DB.prepare("SELECT * FROM tickets WHERE id=?").bind(id).first();
   if(!ticket)return fail("Обращение не найдено",404);
-  if(user.role!=="admin"&&ticket.user_id!==user.id)return fail("Нет доступа к обращению",403);
+  if(!isAdmin(user,env)&&ticket.user_id!==user.id)return fail("Нет доступа к обращению",403);
   const body=await readBody(request),message=clean(body.body,5000);if(message.length<2)return fail("Комментарий слишком короткий");
   await env.DB.prepare("INSERT INTO comments(id,ticket_id,user_id,author_name,body,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),id,user.id,user.username,message).run();
   await env.DB.prepare("UPDATE tickets SET updated_at=datetime('now') WHERE id=?").bind(id).run();return json({ok:true},201);
