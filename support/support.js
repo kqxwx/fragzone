@@ -22,12 +22,20 @@ async function home(){
  if(ticketButton)ticketButton.disabled=!me.user;
 
  $("#guestTicketForm").onsubmit=async e=>{
-  e.preventDefault();const form=e.currentTarget;hideNotice();if(!me.user){notice("Сначала войдите или создайте аккаунт.",true);$("#accountPanel")?.scrollIntoView({behavior:"smooth"});return;}const f=new FormData(form);
+  e.preventDefault();const form=e.currentTarget,button=form.querySelector('button[type="submit"]');hideNotice();
+  if(!me.user){notice("Войдите или бесплатно создайте аккаунт — отправлять баг-репорты могут обычные пользователи.",true);$("#accountPanel")?.scrollIntoView({behavior:"smooth",block:"center"});return;}
+  const f=new FormData(form),kind=String(f.get("kind")||"БАГ"),subject=("["+kind+"] "+String(f.get("subject")||"").trim()).slice(0,120);
+  button.disabled=true;const originalText=button.textContent;button.textContent="Отправляем…";
   try{
-   const d=await api("/tickets",{method:"POST",body:JSON.stringify({subject:f.get("subject"),message:f.get("message")})});
-   $("#guestResult").innerHTML='Обращение создано. <a href="/support/my-tickets.html">Открыть мои обращения</a>.';
+   const d=await api("/tickets",{method:"POST",body:JSON.stringify({subject,message:f.get("message")})});
+   $("#guestResult").innerHTML='Обращение отправлено! <a href="/support/my-tickets.html">Посмотреть мои обращения</a>.';
    $("#guestResult").hidden=false;form.reset();
+   if($("#myTicketsWrap")&&!$("#myTicketsWrap").hidden){
+    const list=await api("/tickets");
+    $("#myTickets").innerHTML=list.tickets.map(t=>'<a class="fz-ticket" href="/support/my-ticket.html?id='+encodeURIComponent(t.id)+'"><b>'+esc(t.subject)+'</b><span>'+esc(t.status)+' · '+esc(t.updated_at)+'</span></a>').join("")||"<p>Обращений пока нет.</p>";
+   }
   }catch(err){notice(err.message,true);}
+  finally{button.disabled=false;button.textContent=originalText;}
  };
  if(me.user){
   try {const d=await api("/tickets");$("#myTickets").innerHTML=d.tickets.map(t=>'<a class="fz-ticket" href="/support/my-ticket.html?id='+encodeURIComponent(t.id)+'"><b>'+esc(t.subject)+'</b><span>'+esc(t.status)+' · '+esc(t.updated_at)+'</span></a>').join("")||"<p>Обращений пока нет.</p>";$("#myTicketsWrap").hidden=false;}
