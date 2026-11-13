@@ -55,13 +55,47 @@ async function ticket(){
 }
 async function myTickets(){const d=await api("/tickets");$("#ticketList").innerHTML=d.tickets.map(t=>'<a class="fz-ticket" href="/support/my-ticket.html?id='+encodeURIComponent(t.id)+'"><b>'+esc(t.subject)+'</b><span>'+esc(t.status)+' · '+esc(t.updated_at)+'</span></a>').join("")||"<p>Обращений пока нет.</p>";}
 async function admin(){
+ const login=$("#adminLogin"),panel=$("#adminPanel");
+ let tickets=[],users=[],me=null;
+ const statusNames={open:"Открыт",in_progress:"В работе",answered:"Отвечен",closed:"Закрыт"};
+ const priorityNames={low:"Низкий",normal:"Обычный",high:"Высокий",urgent:"Срочный"};
+ const statusOptions='<option value="open">Открыт</option><option value="in_progress">В работе</option><option value="answered">Отвечен</option><option value="closed">Закрыт</option>';
+ const priorityOptions='<option value="low">Низкий</option><option value="normal">Обычный</option><option value="high">Высокий</option><option value="urgent">Срочный</option>';
+ const renderTickets=()=>{
+  const query=($("#ticketSearch")?.value||"").trim().toLowerCase(),status=$("#ticketStatus")?.value||"all";
+  const filtered=tickets.filter(t=>(status==="all"||t.status===status)&&[t.subject,t.guest_email,t.guest_name,t.user_id,t.id].join(" ").toLowerCase().includes(query));
+  $("#ticketCount").textContent=filtered.length+" из "+tickets.length;
+  $("#adminTickets").innerHTML=filtered.map(t=>'<article class="fz-admin-ticket"><div class="fz-admin-ticket-main"><div class="fz-ticket-title">'+esc(t.subject)+'</div><div class="fz-ticket-meta">'+esc(t.guest_email||t.guest_name||t.user_email||t.user_name||"Пользователь")+' · '+esc(t.created_at||"")+'</div><div class="fz-ticket-id">ID: '+esc(t.id)+'</div></div><div class="fz-ticket-controls"><label>Статус<select data-status="'+esc(t.id)+'">'+statusOptions+'</select></label><label>Приоритет<select data-priority="'+esc(t.id)+'">'+priorityOptions+'</select></label><a class="fz-btn fz-btn-ghost" href="/support/ticket.html?id='+encodeURIComponent(t.id)+'">Открыть →</a></div></article>').join("")||'<div class="fz-empty">'+(tickets.length?"По заданным фильтрам ничего не найдено.":"В базе D1 API не вернул ни одного обращения. Если обращения точно существуют, проверьте привязку DB у Production и среду, в которой они создавались.")+'</div>';
+  for(const t of filtered){
+   const statusEl=document.querySelector('[data-status="'+CSS.escape(t.id)+'"]'),priorityEl=document.querySelector('[data-priority="'+CSS.escape(t.id)+'"]');
+   statusEl.value=t.status;priorityEl.value=t.priority;
+   const save=async()=>{statusEl.disabled=true;priorityEl.disabled=true;try{await api("/admin/tickets/"+encodeURIComponent(t.id),{method:"PATCH",body:JSON.stringify({status:statusEl.value,priority:priorityEl.value})});t.status=statusEl.value;t.priority=priorityEl.value;notice("Изменения сохранены");renderStats();}catch(e){notice(e.message,true);}finally{statusEl.disabled=false;priorityEl.disabled=false;}};
+   statusEl.onchange=save;priorityEl.onchange=save;
+  }
+ };
+ const renderStats=()=>{
+  $("#statAll").textContent=tickets.length;$("#statOpen").textContent=tickets.filter(t=>t.status==="open").length;
+  $("#statProgress").textContent=tickets.filter(t=>t.status==="in_progress").length;$("#statClosed").textContent=tickets.filter(t=>t.status==="closed").length;
+ };
+ const loadTickets=async()=>{const d=await api("/admin/tickets");tickets=Array.isArray(d.tickets)?d.tickets:[];renderStats();renderTickets();};
+ const loadUsers=async()=>{
+  if(me?.role!=="owner")return;
+  const d=await api("/admin/users");users=Array.isArray(d.users)?d.users:[];
+  $("#adminUsers").innerHTML=users.map(u=>'<article class="fz-user-row"><div><strong>'+esc(u.username||"Без имени")+'</strong><small>'+esc(u.email)+'</small><small>Создан: '+esc(u.created_at||"—")+'</small></div><div class="fz-user-role"><span class="'+(u.role==="owner"?"fz-owner-badge":u.role==="admin"?"fz-admin-badge":"fz-user-badge")+'">'+(u.role==="owner"?"Владелец":u.role==="admin"?"Администратор":"Пользователь")+'</span>'+(u.role==="owner"?"":'<select data-user-role="'+esc(u.id)+'"><option value="user">Пользователь</option><option value="admin">Администратор</option></select>')+'</div></article>').join("")||'<div class="fz-empty">Пользователей пока нет.</div>';
+  for(const u of users){if(u.role==="owner")continue;const select=document.querySelector('[data-user-role="'+CSS.escape(u.id)+'"]');select.value=u.role;select.onchange=async()=>{select.disabled=true;try{await api("/admin/users/"+encodeURIComponent(u.id),{method:"PATCH",body:JSON.stringify({role:select.value})});u.role=select.value;notice("Роль пользователя обновлена");await loadUsers();}catch(e){notice(e.message,true);select.value=u.role;}finally{select.disabled=false;}};}
+ };
  async function load(){
-  const me=await api("/auth/me");if(me.user?.role!=="admin"){$("#adminLogin").hidden=false;$("#adminPanel").hidden=true;return;}
-  $("#adminLogin").hidden=true;$("#adminPanel").hidden=false;const d=await api("/admin/tickets");
-  $("#adminTickets").innerHTML=d.tickets.map(t=>'<article class="fz-admin-ticket"><div><b>'+esc(t.subject)+'</b><br><small>'+esc(t.guest_email||t.guest_name||t.user_id||"Пользователь")+' · '+esc(t.created_at)+'</small></div><select data-status="'+esc(t.id)+'"><option value="open">Открыт</option><option value="in_progress">В работе</option><option value="answered">Отвечен</option><option value="closed">Закрыт</option></select><select data-priority="'+esc(t.id)+'"><option value="low">Низкий</option><option value="normal">Обычный</option><option value="high">Высокий</option><option value="urgent">Срочный</option></select><a href="/support/ticket.html?id='+encodeURIComponent(t.id)+'">Открыть</a></article>').join("")||"<p>Пока нет обращений.</p>";
-  for(const t of d.tickets){const s=document.querySelector('[data-status="'+CSS.escape(t.id)+'"]'),p=document.querySelector('[data-priority="'+CSS.escape(t.id)+'"]');s.value=t.status;p.value=t.priority;const save=async()=>{try{await api("/admin/tickets/"+encodeURIComponent(t.id),{method:"PATCH",body:JSON.stringify({status:s.value,priority:p.value})});notice("Изменения сохранены");}catch(e){notice(e.message,true);}};s.onchange=save;p.onchange=save;}
+  me=await api("/auth/me");
+  if(!me.user||!["admin","owner"].includes(me.user.role)){login.hidden=false;panel.hidden=true;return;}
+  login.hidden=true;panel.hidden=false;
+  $("#adminWelcome").textContent=(me.user.role==="owner"?"Владелец FRAGZONE":"Администратор")+" · "+me.user.username+" · "+me.user.email;
+  $("#teamPanel").hidden=me.user.role!=="owner";
+  await loadTickets();
+  if(me.user.role==="owner")await loadUsers();
  }
- $("#adminLoginForm").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.currentTarget);try{await api("/admin/login",{method:"POST",body:JSON.stringify({email:f.get("email"),password:f.get("password")})});await load();}catch(err){notice(err.message,true);}};
+ $("#adminLoginForm").onsubmit=async e=>{e.preventDefault();const button=e.currentTarget.querySelector("button");button.disabled=true;const f=new FormData(e.currentTarget);try{await api("/admin/login",{method:"POST",body:JSON.stringify({email:f.get("email"),password:f.get("password")})});await load();}catch(err){notice(err.message,true);}finally{button.disabled=false;}};
+ $("#ticketSearch").addEventListener("input",renderTickets);$("#ticketStatus").addEventListener("change",renderTickets);
+ $("#adminRefresh").onclick=async()=>{const b=$("#adminRefresh");b.disabled=true;try{await load();notice("Данные обновлены");}catch(e){notice(e.message,true);}finally{b.disabled=false;}};
  await load();
 }
 document.addEventListener("DOMContentLoaded",()=>{const pages={home,auth,ticket,mytickets:myTickets,admin};const run=pages[document.body.dataset.page];if(run)run().catch(e=>notice(e.message,true));});
