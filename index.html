@@ -669,8 +669,8 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 </section>
 
 <div class="section-head">
-  <h2 data-t="popularGames">Популярные игры · ТОП-6</h2>
-  <small>TOP 6 GAMES</small>
+  <h2 data-t="popularGames">Популярные игры · ТОП-8</h2>
+  <small>TOP 8 GAMES</small>
 </div>
 
 <section class="popular-games" id="popularGames">
@@ -764,11 +764,8 @@ const games = [
   {id:"dayz",name:"DayZ",short:"DAYZ",app:221100},
   {id:"gmod",name:"Garry's Mod",short:"GMOD",app:4000},
   {id:"tf2",name:"Team Fortress 2",short:"TF2",app:440},
-  {id:"l4d2",name:"Left 4 Dead 2",short:"L4D2",app:550},
   {id:"arma3",name:"Arma 3",short:"ARMA 3",app:107410},
   {id:"reforger",name:"Arma Reforger",short:"REFORGER",app:1874880},
-  {id:"sevendays",name:"7 Days to Die",short:"7DTD",app:251570},
-  {id:"zomboid",name:"Project Zomboid",short:"ZOMBOID",app:108600},
   {id:"vrising",name:"V Rising",short:"V RISING",app:1604030},
   {id:"spaceeng",name:"Space Engineers",short:"SPACE",app:244850},
   {id:"unturned",name:"Unturned",short:"UNTURNED",app:304930},
@@ -876,18 +873,19 @@ function findGameStats(id) {
 }
 
 function buildPopularGames() {
-  // Показываем только шесть самых популярных игр по числу серверов.
-  // Текущая выбранная игра остаётся видимой, чтобы выбор не пропадал из списка.
-  const ranked = [...games]
+  // Закреплённые популярные игры всегда видны; остальные места занимают
+  // поддерживаемые игры с наибольшим числом серверов мониторинга.
+  const ranked = games
     .map(game => ({game, count:Number(findGameStats(game.id).total_servers || 0)}))
     .sort((a,b) => b.count - a.count);
+  const pinnedIds = ["cs2","minecraft","rust","dayz","gmod","tf2"];
+  const pinned = pinnedIds.map(id => ranked.find(item => item.game.id === id)).filter(Boolean);
+  const extras = ranked.filter(item => !pinnedIds.includes(item.game.id) && item.count > 0);
+  const visible = [...pinned, ...extras].slice(0,8);
   const active = ranked.find(item => item.game.id === currentGame);
-  const popular = ranked.filter(item => item.count > 0).slice(0,6);
-  if (active && !popular.some(item => item.game.id === currentGame)) {
-    popular.pop();
-    popular.push(active);
+  if (active && !visible.some(item => item.game.id === currentGame)) {
+    visible[visible.length - 1] = active;
   }
-  const visible = popular.length ? popular : ranked.slice(0,6);
 
   document.getElementById("popularGames").innerHTML = visible.map(({game,count}) => `
       <button class="popular-game ${game.id === currentGame ? "active" : ""}"
@@ -901,7 +899,7 @@ function buildPopularGames() {
       </button>
     `).join("");
 
-  document.getElementById("gamesTracked").textContent = gamesStats.length || games.length;
+  document.getElementById("gamesTracked").textContent = games.length;
 }
 
 function updateGameSelection() {
@@ -1258,8 +1256,7 @@ function connectServer(ip,gameId) {
   if (!ip) return;
 
   const steamGames = [
-    "cs2","tf2","gmod","l4d2","sevendays",
-    "zomboid","arma3","vrising","spaceeng",
+    "cs2","tf2","gmod","arma3","vrising","spaceeng",
     "unturned","kf2"
   ];
 
