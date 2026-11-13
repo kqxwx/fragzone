@@ -4,6 +4,7 @@ const COOKIE = "fz_session";
 const SESSION_DAYS = 14;
 const PBKDF2_ITERATIONS = 100000;
 const MAX_BODY = 20000;
+const guestTicketRate = new Map();
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store",...headers}});
@@ -82,6 +83,15 @@ async function handle(request,env){
   if(clean(body.website,200))return fail("Не удалось отправить обращение",400);
   if(subject.length<4||message.length<10)return fail("Тема — минимум 4 символа, описание — минимум 10");
   if(!user&&(!guestName||!validEmail(guestEmail)))return fail("Для отправки без аккаунта укажите имя и корректный email");
+  if(!user){
+   const ip=request.headers.get("CF-Connecting-IP");
+   if(ip){
+    const rateKey=await sha256(ip),now=Date.now(),recent=(guestTicketRate.get(rateKey)||[]).filter(time=>now-time<10*60*1000);
+    if(recent.length>=3)return fail("Слишком много обращений. Попробуйте ещё раз через несколько минут.",429);
+    recent.push(now);guestTicketRate.set(rateKey,recent);
+    if(guestTicketRate.size>1000)for(const [key,times] of guestTicketRate)if(!times.length||now-times[times.length-1]>10*60*1000)guestTicketRate.delete(key);
+   }
+  }
   const id=crypto.randomUUID(),guestKey=user?null:randomHex(32),author=user?user.username:guestName;
   await env.DB.prepare("INSERT INTO tickets(id,user_id,guest_name,guest_email,access_hash,subject,status,priority,created_at,updated_at) VALUES(?,?,?,?,?,?,'open','normal',datetime('now'),datetime('now'))").bind(id,user?.id||null,user?null:guestName,user?null:guestEmail,guestKey?await sha256(guestKey):null,subject).run();
   await env.DB.prepare("INSERT INTO comments(id,ticket_id,user_id,author_name,body,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),id,user?.id||null,author,message).run();
