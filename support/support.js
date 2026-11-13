@@ -22,11 +22,11 @@ async function home(){
  if(ticketButton)ticketButton.disabled=!me.user;
 
  $("#guestTicketForm").onsubmit=async e=>{
-  e.preventDefault();hideNotice();if(!me.user){notice("Сначала войдите или создайте аккаунт.",true);$("#accountPanel")?.scrollIntoView({behavior:"smooth"});return;}const f=new FormData(e.currentTarget);
+  e.preventDefault();const form=e.currentTarget;hideNotice();if(!me.user){notice("Сначала войдите или создайте аккаунт.",true);$("#accountPanel")?.scrollIntoView({behavior:"smooth"});return;}const f=new FormData(form);
   try{
    const d=await api("/tickets",{method:"POST",body:JSON.stringify({subject:f.get("subject"),message:f.get("message")})});
    $("#guestResult").innerHTML='Обращение создано. <a href="/support/my-tickets.html">Открыть мои обращения</a>.';
-   $("#guestResult").hidden=false;e.currentTarget.reset();
+   $("#guestResult").hidden=false;form.reset();
   }catch(err){notice(err.message,true);}
  };
  if(me.user){
@@ -94,6 +94,20 @@ async function admin(){
   if(me.user.role==="owner")await loadUsers();
  }
  $("#adminLoginForm").onsubmit=async e=>{e.preventDefault();const button=e.currentTarget.querySelector("button");button.disabled=true;const f=new FormData(e.currentTarget);try{await api("/admin/login",{method:"POST",body:JSON.stringify({email:f.get("email"),password:f.get("password")})});await load();}catch(err){notice(err.message,true);}finally{button.disabled=false;}};
+ $("#adminRoleForm").onsubmit=async e=>{
+  e.preventDefault();const form=e.currentTarget,button=form.querySelector('button[type="submit"]'),data=new FormData(form);
+  button.disabled=true;hideNotice();
+  try{
+   await api("/admin/users",{method:"POST",body:JSON.stringify({email:data.get("email"),role:data.get("role")})});
+   notice(data.get("role")==="admin"?"Пользователь назначен администратором":"Права администратора сняты");
+   form.reset();await loadUsers();
+  }catch(error){notice(error.message,true);}
+  finally{button.disabled=false;}
+ };
+ $("#userSearch").addEventListener("input",()=>{
+  const q=$("#userSearch").value.trim().toLowerCase();
+  $("#adminUsers").querySelectorAll(".fz-user-row").forEach(row=>{row.hidden=!row.textContent.toLowerCase().includes(q);});
+ });
  $("#ticketSearch").addEventListener("input",renderTickets);$("#ticketStatus").addEventListener("change",renderTickets);
  $("#adminRefresh").onclick=async()=>{const b=$("#adminRefresh");b.disabled=true;try{await load();notice("Данные обновлены");}catch(e){notice(e.message,true);}finally{b.disabled=false;}};
  await load();

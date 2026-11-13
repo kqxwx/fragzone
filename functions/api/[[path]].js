@@ -46,6 +46,7 @@ async function createSession(userId,env){
  await env.DB.prepare("INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)").bind(await sha256(token),userId,expires).run();return token;
 }
 function isOwner(user,env){return !!user&&clean(env.ADMIN_EMAIL,254).toLowerCase()===String(user.email||'').toLowerCase();}
+function isAdmin(user,env){return !!user&&(user.role==="admin"||isOwner(user,env));}
 function viewUser(user,env){const owner=isOwner(user,env);return{id:user.id,email:user.email,username:user.username,role:owner?'owner':user.role,isOwner:owner};}
 
 async function handle(request,env){
@@ -92,7 +93,7 @@ async function handle(request,env){
  if(ticketMatch&&method==="GET"){
   const id=ticketMatch[1],user=await currentUser(request,env),key=url.searchParams.get("key")||"",ticket=await env.DB.prepare("SELECT * FROM tickets WHERE id=?").bind(id).first();
   if(!ticket)return fail("Обращение не найдено",404);
-  const allowed=user?.role==="admin"||(user&&ticket.user_id===user.id)||(key&&ticket.access_hash&&await sha256(key)===ticket.access_hash);
+  const allowed=isAdmin(user,env)||(user&&ticket.user_id===user.id)||(key&&ticket.access_hash&&await sha256(key)===ticket.access_hash);
   if(!allowed)return fail("Нет доступа к обращению",403);
   const comments=await env.DB.prepare("SELECT id,author_name,body,created_at FROM comments WHERE ticket_id=? ORDER BY created_at").bind(id).all();
   return json({ticket:{id:ticket.id,user_id:ticket.user_id,subject:ticket.subject,status:ticket.status,priority:ticket.priority,created_at:ticket.created_at},comments:comments.results});
@@ -102,7 +103,7 @@ async function handle(request,env){
   const user=await currentUser(request,env);if(!user)return fail("Войдите в аккаунт, чтобы комментировать",401);
   const id=commentMatch[1],ticket=await env.DB.prepare("SELECT * FROM tickets WHERE id=?").bind(id).first();
   if(!ticket)return fail("Обращение не найдено",404);
-  if(user.role!=="admin"&&ticket.user_id!==user.id)return fail("Нет доступа к обращению",403);
+  if(!isAdmin(user,env)&&ticket.user_id!==user.id)return fail("Нет доступа к обращению",403);
   const body=await readBody(request),message=clean(body.body,5000);if(message.length<2)return fail("Комментарий слишком короткий");
   await env.DB.prepare("INSERT INTO comments(id,ticket_id,user_id,author_name,body,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),id,user.id,user.username,message).run();
   await env.DB.prepare("UPDATE tickets SET updated_at=datetime('now') WHERE id=?").bind(id).run();return json({ok:true},201);
@@ -127,6 +128,17 @@ async function handle(request,env){
   const ownerEmail=clean(env.ADMIN_EMAIL,254).toLowerCase();
   return json({users:result.results.map(item=>({...item,role:String(item.email).toLowerCase()===ownerEmail?"owner":item.role}))});
  }
+ if(path==="admin/users"&&method==="POST"){
+  const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец может управлять администраторами",403);
+  const body=await readBody(request),email=clean(body.email,254).toLowerCase(),role=body.role;
+  if(!validEmail(email))return fail("Укажите корректный email");
+  if(!["user","admin"].includes(role))return fail("Допустимые роли: user или admin");
+  if(email===clean(env.ADMIN_EMAIL,254).toLowerCase())return fail("Нельзя изменить роль владельца",403);
+  const target=await env.DB.prepare("SELECT id,email,username FROM users WHERE email=?").bind(email).first();
+  if(!target)return fail("Пользователь с таким email не найден. Сначала он должен зарегистрироваться.",404);
+  await env.DB.prepare("UPDATE users SET role=? WHERE id=?").bind(role,target.id).run();
+  return json({ok:true,user:{id:target.id,email:target.email,username:target.username,role}});
+ }
  const adminUser=path.match(new RegExp("^admin/users/([0-9a-f-]{36})$","i"));
  if(adminUser&&method==="PATCH"){
   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец может управлять администраторами",403);
@@ -139,7 +151,7 @@ async function handle(request,env){
   return json({ok:true,user:{id:target.id,email:target.email,role}});
  }
  if(path==="admin/tickets"&&method==="GET"){
-  const user=await currentUser(request,env);if(user?.role!=="admin")return fail("Требуется вход администратора",403);
+  const user=await currentUser(request,env);if(!isAdmin(user,env))return fail("Требуется вход администратора",403);
   const status=url.searchParams.get("status")||"all";if(!["all","open","in_progress","answered","closed"].includes(status))return fail("Недопустимый фильтр статуса");
   const sql="SELECT t.*,u.email AS user_email,u.username AS user_name,(SELECT COUNT(*) FROM comments c WHERE c.ticket_id=t.id) AS comment_count FROM tickets t LEFT JOIN users u ON u.id=t.user_id "+(status==="all"?"":"WHERE t.status=? ")+"ORDER BY t.updated_at DESC LIMIT 300";
   const result=status==="all"?await env.DB.prepare(sql).all():await env.DB.prepare(sql).bind(status).all();
@@ -147,7 +159,7 @@ async function handle(request,env){
  }
  const adminTicket=path.match(/^admin\/tickets\/([0-9a-f-]{36})$/i);
  if(adminTicket&&method==="PATCH"){
-  const user=await currentUser(request,env);if(user?.role!=="admin")return fail("Требуется вход администратора",403);
+  const user=await currentUser(request,env);if(!isAdmin(user,env))return fail("Требуется вход администратора",403);
   const body=await readBody(request),status=["open","in_progress","answered","closed"].includes(body.status)?body.status:null,priority=["low","normal","high","urgent"].includes(body.priority)?body.priority:null;
   if(!status&&!priority)return fail("Нет допустимых изменений");
   const result=await env.DB.prepare("UPDATE tickets SET status=COALESCE(?,status),priority=COALESCE(?,priority),updated_at=datetime('now') WHERE id=?").bind(status,priority,adminTicket[1]).run();if(!result.meta?.changes)return fail("Обращение не найдено",404);return json({ok:true});
