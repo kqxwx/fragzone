@@ -61,7 +61,7 @@ async function ticket(){
    $("#closeTicket").onclick=async()=>{const b=$("#closeTicket");b.disabled=true;try{await api("/tickets/"+encodeURIComponent(id),{method:"PATCH",body:JSON.stringify({status:"closed",key})});location.reload();}catch(e){notice(e.message,true);b.disabled=false;}};
   }
   if(isAdmin&&d.ticket.status==="closed"){
-   $("#ticketActions").hidden=false;$("#reopenTicket").hidden=false;
+   $("#ticketActions").hidden=false;$("#closeTicket").hidden=true;$("#reopenTicket").hidden=false;
    $("#reopenTicket").onclick=async()=>{const b=$("#reopenTicket");b.disabled=true;try{await api("/tickets/"+encodeURIComponent(id),{method:"PATCH",body:JSON.stringify({status:"open"})});location.reload();}catch(e){notice(e.message,true);b.disabled=false;}};
   }
   if(canManage&&d.ticket.status!=="closed"){
@@ -88,6 +88,9 @@ async function admin(){
    statusEl.value=t.status;priorityEl.value=t.priority;
    const save=async()=>{statusEl.disabled=true;priorityEl.disabled=true;try{await api("/admin/tickets/"+encodeURIComponent(t.id),{method:"PATCH",body:JSON.stringify({status:statusEl.value,priority:priorityEl.value})});t.status=statusEl.value;t.priority=priorityEl.value;notice("Изменения сохранены");renderStats();}catch(e){notice(e.message,true);}finally{statusEl.disabled=false;priorityEl.disabled=false;}};
    statusEl.onchange=save;priorityEl.onchange=save;
+   const quick=document.querySelector('[data-quick-status="'+CSS.escape(t.id)+'"]');
+   quick.onclick=async()=>{quick.disabled=true;const next=t.status==="closed"?"open":"closed";try{await api("/admin/tickets/"+encodeURIComponent(t.id),{method:"PATCH",body:JSON.stringify({status:next})});t.status=next;notice(next==="closed"?"Тикет закрыт":"Тикет снова открыт");renderStats();renderTickets();}catch(e){notice(e.message,true);quick.disabled=false;}};
+
   }
  };
  const renderStats=()=>{
