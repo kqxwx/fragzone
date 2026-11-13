@@ -48,7 +48,7 @@ async function ticket(){
   $("#ticketTitle").textContent=d.ticket.subject;$("#ticketMeta").textContent="Статус: "+d.ticket.status+" · Создано: "+d.ticket.created_at;
   $("#comments").innerHTML=d.comments.map(c=>'<article class="fz-comment"><b>'+esc(c.author_name)+'</b><time>'+esc(c.created_at)+'</time><p>'+esc(c.body)+'</p></article>').join("")||"<p>Пока нет сообщений.</p>";
   const me=await api("/auth/me");
-  if(me.user&&(me.user.role==="admin"||d.ticket.user_id===me.user.id)){
+  if(me.user&&(["admin","owner"].includes(me.user.role)||d.ticket.user_id===me.user.id)){
    $("#commentFormWrap").hidden=false;$("#commentForm").onsubmit=async e=>{e.preventDefault();try{await api("/tickets/"+encodeURIComponent(id)+"/comments",{method:"POST",body:JSON.stringify({body:$("#commentBody").value})});location.reload();}catch(err){notice(err.message,true);}};
   }else $("#loginCommentHint").hidden=false;
  }catch(err){notice(err.message,true);}
@@ -63,7 +63,7 @@ async function admin(){
  const priorityOptions='<option value="low">Низкий</option><option value="normal">Обычный</option><option value="high">Высокий</option><option value="urgent">Срочный</option>';
  const renderTickets=()=>{
   const query=($("#ticketSearch")?.value||"").trim().toLowerCase(),status=$("#ticketStatus")?.value||"all";
-  const filtered=tickets.filter(t=>(status==="all"||t.status===status)&&[t.subject,t.guest_email,t.guest_name,t.user_id,t.id].join(" ").toLowerCase().includes(query));
+  const filtered=tickets.filter(t=>(status==="all"||t.status===status)&&[t.subject,t.guest_email,t.guest_name,t.user_email,t.user_name,t.user_id,t.id].join(" ").toLowerCase().includes(query));
   $("#ticketCount").textContent=filtered.length+" из "+tickets.length;
   $("#adminTickets").innerHTML=filtered.map(t=>'<article class="fz-admin-ticket"><div class="fz-admin-ticket-main"><div class="fz-ticket-title">'+esc(t.subject)+'</div><div class="fz-ticket-meta">'+esc(t.guest_email||t.guest_name||t.user_email||t.user_name||"Пользователь")+' · '+esc(t.created_at||"")+'</div><div class="fz-ticket-id">ID: '+esc(t.id)+'</div></div><div class="fz-ticket-controls"><label>Статус<select data-status="'+esc(t.id)+'">'+statusOptions+'</select></label><label>Приоритет<select data-priority="'+esc(t.id)+'">'+priorityOptions+'</select></label><a class="fz-btn fz-btn-ghost" href="/support/ticket.html?id='+encodeURIComponent(t.id)+'">Открыть →</a></div></article>').join("")||'<div class="fz-empty">'+(tickets.length?"По заданным фильтрам ничего не найдено.":"В базе D1 API не вернул ни одного обращения. Если обращения точно существуют, проверьте привязку DB у Production и среду, в которой они создавались.")+'</div>';
   for(const t of filtered){
