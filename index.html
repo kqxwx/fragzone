@@ -669,8 +669,8 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 </section>
 
 <div class="section-head">
-  <h2 data-t="popularGames">Популярные игры</h2>
-  <small>POPULAR GAMES</small>
+  <h2 data-t="popularGames">Популярные игры · ТОП-6</h2>
+  <small>TOP 6 GAMES</small>
 </div>
 
 <section class="popular-games" id="popularGames">
@@ -876,28 +876,30 @@ function findGameStats(id) {
 }
 
 function buildPopularGames() {
-  const sorted = [...games].sort((a,b) => {
-    const aCount = Number(findGameStats(a.id).total_servers || 0);
-    const bCount = Number(findGameStats(b.id).total_servers || 0);
-    return bCount - aCount;
-  });
+  // Показываем только шесть самых популярных игр по числу серверов.
+  // Текущая выбранная игра остаётся видимой, чтобы выбор не пропадал из списка.
+  const ranked = [...games]
+    .map(game => ({game, count:Number(findGameStats(game.id).total_servers || 0)}))
+    .sort((a,b) => b.count - a.count);
+  const active = ranked.find(item => item.game.id === currentGame);
+  const popular = ranked.filter(item => item.count > 0).slice(0,6);
+  if (active && !popular.some(item => item.game.id === currentGame)) {
+    popular.pop();
+    popular.push(active);
+  }
+  const visible = popular.length ? popular : ranked.slice(0,6);
 
-  document.getElementById("popularGames").innerHTML = sorted.map(g => {
-    const stats = findGameStats(g.id);
-    const count = Number(stats.total_servers || 0);
-
-    return `
-      <button class="popular-game ${g.id === currentGame ? "active" : ""}"
-              onclick="selectGame('${g.id}')">
-        <img src="${gameImage(g)}" alt="${esc(g.name)}"
+  document.getElementById("popularGames").innerHTML = visible.map(({game,count}) => `
+      <button class="popular-game ${game.id === currentGame ? "active" : ""}"
+              onclick="selectGame('${game.id}')">
+        <img src="${gameImage(game)}" alt="${esc(game.name)}"
              loading="lazy" onerror="this.style.display='none'">
         <span class="popular-game-info">
-          <strong>${esc(g.name)}</strong>
+          <strong>${esc(game.name)}</strong>
           <small>${fmt(count)} ${t("servers")}</small>
         </span>
       </button>
-    `;
-  }).join("");
+    `).join("");
 
   document.getElementById("gamesTracked").textContent = gamesStats.length || games.length;
 }
