@@ -18,17 +18,18 @@ async function home(){
  if($("#logoutBtn"))$("#logoutBtn").onclick=async()=>{try{await api("/auth/logout",{method:"POST",body:"{}"});location.reload();}catch(err){notice(err.message,true);}};
  if($("#accountPanel"))$("#accountPanel").hidden=!!me.user;
  const ticketButton=$("#guestTicketForm button[type=submit], #guestTicketForm button");
- if($("#ticketAuthHint"))$("#ticketAuthHint").hidden=!!me.user;
- if(ticketButton)ticketButton.disabled=!me.user;
+ if($("#ticketAuthHint"))$("#ticketAuthHint").hidden=false;
+ if($("#guestFields"))$("#guestFields").hidden=!!me.user;
+ for(const field of $("#guestFields")?.querySelectorAll("input")||[])field.required=!me.user;
+ if(ticketButton)ticketButton.disabled=false;
 
  $("#guestTicketForm").onsubmit=async e=>{
   e.preventDefault();const form=e.currentTarget,button=form.querySelector('button[type="submit"]');hideNotice();
-  if(!me.user){notice("Войдите или бесплатно создайте аккаунт — отправлять баг-репорты могут обычные пользователи.",true);$("#accountPanel")?.scrollIntoView({behavior:"smooth",block:"center"});return;}
   const f=new FormData(form),kind=String(f.get("kind")||"БАГ"),subject=("["+kind+"] "+String(f.get("subject")||"").trim()).slice(0,120);
   button.disabled=true;const originalText=button.textContent;button.textContent="Отправляем…";
   try{
-   const d=await api("/tickets",{method:"POST",body:JSON.stringify({subject,message:f.get("message")})});
-   $("#guestResult").innerHTML='Обращение отправлено! <a href="/support/my-tickets.html">Посмотреть мои обращения</a>.';
+   const d=await api("/tickets",{method:"POST",body:JSON.stringify({subject,message:f.get("message"),name:f.get("name"),email:f.get("email"),website:f.get("website")})});
+   $("#guestResult").innerHTML='Обращение создано! '+(d.ticket.url?'<a href="'+esc(d.ticket.url)+'">Открыть и сохранить ссылку на тикет</a>':'<a href="/support/my-tickets.html">Посмотреть мои обращения</a>')+'. Ссылка для гостевого обращения содержит секретный ключ — не передавай её посторонним.';
    $("#guestResult").hidden=false;form.reset();
   }catch(err){notice(err.message,true);}
   finally{button.disabled=false;button.textContent=originalText;}
@@ -49,12 +50,24 @@ async function ticket(){
  const p=new URLSearchParams(location.search),id=p.get("id"),key=p.get("key");if(!id)return notice("Не указан номер обращения",true);
  try{
   const d=await api("/tickets/"+encodeURIComponent(id)+(key?"?key="+encodeURIComponent(key):""));
-  $("#ticketTitle").textContent=d.ticket.subject;$("#ticketMeta").textContent="Статус: "+d.ticket.status+" · Создано: "+d.ticket.created_at;
+  const statusNames={open:"Открыт",in_progress:"В работе",answered:"Есть ответ",closed:"Закрыт"};
+  $("#ticketTitle").textContent=d.ticket.subject;
+  $("#ticketMeta").textContent="Статус: "+(statusNames[d.ticket.status]||d.ticket.status)+" · Создано: "+d.ticket.created_at;
   $("#comments").innerHTML=d.comments.map(c=>'<article class="fz-comment"><b>'+esc(c.author_name)+'</b><time>'+esc(c.created_at)+'</time><p>'+esc(c.body)+'</p></article>').join("")||"<p>Пока нет сообщений.</p>";
-  const me=await api("/auth/me");
-  if(me.user&&(["admin","owner"].includes(me.user.role)||d.ticket.user_id===me.user.id)){
-   $("#commentFormWrap").hidden=false;$("#commentForm").onsubmit=async e=>{e.preventDefault();try{await api("/tickets/"+encodeURIComponent(id)+"/comments",{method:"POST",body:JSON.stringify({body:$("#commentBody").value})});location.reload();}catch(err){notice(err.message,true);}};
-  }else $("#loginCommentHint").hidden=false;
+  const me=await api("/auth/me"),isAdmin=!!(me.user&&["admin","owner"].includes(me.user.role)),isOwner=!!(me.user&&d.ticket.user_id===me.user.id),isGuest=!!key;
+  const canManage=isAdmin||isOwner||isGuest;
+  if(canManage&&d.ticket.status!=="closed"){
+   $("#ticketActions").hidden=false;
+   $("#closeTicket").onclick=async()=>{const b=$("#closeTicket");b.disabled=true;try{await api("/tickets/"+encodeURIComponent(id),{method:"PATCH",body:JSON.stringify({status:"closed",key})});location.reload();}catch(e){notice(e.message,true);b.disabled=false;}};
+  }
+  if(isAdmin&&d.ticket.status==="closed"){
+   $("#ticketActions").hidden=false;$("#reopenTicket").hidden=false;
+   $("#reopenTicket").onclick=async()=>{const b=$("#reopenTicket");b.disabled=true;try{await api("/tickets/"+encodeURIComponent(id),{method:"PATCH",body:JSON.stringify({status:"open"})});location.reload();}catch(e){notice(e.message,true);b.disabled=false;}};
+  }
+  if(canManage&&d.ticket.status!=="closed"){
+   $("#commentFormWrap").hidden=false;
+   $("#commentForm").onsubmit=async e=>{e.preventDefault();const b=e.currentTarget.querySelector("button");b.disabled=true;try{await api("/tickets/"+encodeURIComponent(id)+"/comments",{method:"POST",body:JSON.stringify({body:$("#commentBody").value,key})});location.reload();}catch(err){notice(err.message,true);b.disabled=false;}};
+  }else if(!canManage)$("#loginCommentHint").hidden=false;
  }catch(err){notice(err.message,true);}
 }
 async function myTickets(){const d=await api("/tickets");$("#ticketList").innerHTML=d.tickets.map(t=>'<a class="fz-ticket" href="/support/my-ticket.html?id='+encodeURIComponent(t.id)+'"><b>'+esc(t.subject)+'</b><span>'+esc(t.status)+' · '+esc(t.updated_at)+'</span></a>').join("")||"<p>Обращений пока нет.</p>";}
