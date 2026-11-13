@@ -26,7 +26,7 @@
 <div class="fz-admin-toolbar"><input id="ticketSearch" type="search" placeholder="Поиск по теме, пользователю или ID…"><select id="ticketStatus"><option value="all">Все статусы</option><option value="open">Открытые</option><option value="in_progress">В работе</option><option value="answered">Отвеченные</option><option value="closed">Закрытые</option></select></div>
 <div id="adminTickets" class="fz-admin-list"><div class="fz-muted">Загружаем обращения…</div></div></section>
 <section class="fz-panel" id="teamPanel" hidden><div class="fz-admin-section-head"><div><div class="fz-eyebrow">ACCESS CONTROL</div><h2>Команда и роли</h2><p class="fz-muted">Назначай администраторами зарегистрированных пользователей. Владелец защищён и не может быть понижен.</p></div><span class="fz-owner-badge">OWNER ONLY</span></div><form id="adminRoleForm" class="fz-admin-toolbar">
-<input id="adminUserEmail" type="email" placeholder="Email зарегистрированного пользователя" required>
+<input id="adminUserEmail" name="email" type="email" placeholder="Email зарегистрированного пользователя" required>
 <select id="adminUserRole"><option value="admin">Назначить администратором</option><option value="user">Снять права администратора</option></select>
 <button class="fz-btn" type="submit">Применить</button>
 </form>
