@@ -22,11 +22,11 @@ async function home(){
  if(ticketButton)ticketButton.disabled=!me.user;
 
  $("#guestTicketForm").onsubmit=async e=>{
-  e.preventDefault();hideNotice();if(!me.user){notice("Сначала войдите или создайте аккаунт.",true);$("#accountPanel")?.scrollIntoView({behavior:"smooth"});return;}const f=new FormData(e.currentTarget);
+  e.preventDefault();const form=e.currentTarget;hideNotice();if(!me.user){notice("Сначала войдите или создайте аккаунт.",true);$("#accountPanel")?.scrollIntoView({behavior:"smooth"});return;}const f=new FormData(form);
   try{
    const d=await api("/tickets",{method:"POST",body:JSON.stringify({subject:f.get("subject"),message:f.get("message")})});
    $("#guestResult").innerHTML='Обращение создано. <a href="/support/my-tickets.html">Открыть мои обращения</a>.';
-   $("#guestResult").hidden=false;e.currentTarget.reset();
+   $("#guestResult").hidden=false;form.reset();
   }catch(err){notice(err.message,true);}
  };
  if(me.user){
