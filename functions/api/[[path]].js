@@ -108,13 +108,15 @@ async function handle(request,env){
  }
  if(path==="admin/login"&&method==="POST"){
   const body=await readBody(request),email=clean(body.email,254).toLowerCase(),password=typeof body.password==="string"?body.password:"";
-  if(!env.ADMIN_EMAIL||!env.ADMIN_PASSWORD_HASH)return fail("Администратор не настроен в Cloudflare",503);
-  if(email!==env.ADMIN_EMAIL.toLowerCase())return fail("Неверные данные администратора",401);
-  const adminPasswordCheck=await verifyPassword(password,env.ADMIN_PASSWORD_HASH);
+  const configuredAdminEmail=clean(env.ADMIN_EMAIL,254).toLowerCase();
+  const configuredAdminHash=typeof env.ADMIN_PASSWORD_HASH==="string"?env.ADMIN_PASSWORD_HASH.trim():"";
+  if(!configuredAdminEmail||!configuredAdminHash)return fail("Администратор не настроен в Cloudflare",503);
+  if(email!==configuredAdminEmail)return fail("Неверные данные администратора",401);
+  const adminPasswordCheck=await verifyPassword(password,configuredAdminHash);
   if(adminPasswordCheck==="legacy")return fail("Хеш ADMIN_PASSWORD_HASH нужно обновить до формата pbkdf2$100000$salt$hash для бесплатного тарифа.",503);
   if(adminPasswordCheck!==true)return fail("Неверные данные администратора",401);
   let admin=await env.DB.prepare("SELECT * FROM users WHERE email=?").bind(email).first();
-  if(!admin){const id=crypto.randomUUID();await env.DB.prepare("INSERT INTO users(id,email,username,password_hash,role) VALUES(?,?, 'Администратор',?,'admin')").bind(id,email,env.ADMIN_PASSWORD_HASH).run();admin={id,email,username:"Администратор",role:"admin"};}
+  if(!admin){const id=crypto.randomUUID();await env.DB.prepare("INSERT INTO users(id,email,username,password_hash,role) VALUES(?,?, 'Администратор',?,'admin')").bind(id,email,configuredAdminHash).run();admin={id,email,username:"Администратор",role:"admin"};}
   else{await env.DB.prepare("UPDATE users SET role='admin' WHERE id=?").bind(admin.id).run();admin.role="admin";}
   const token=await createSession(admin.id,env);return json({user:viewUser(admin)},200,{"set-cookie":setCookie(token)});
  }
