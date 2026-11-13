@@ -1139,11 +1139,15 @@ function renderRows() {
   const tbody = document.getElementById("rows");
   const query = document.getElementById("search").value.trim().toLowerCase();
 
-  // Скрываем пустые серверы: показываем только записи с известным онлайном больше нуля.
-  let list = serverItems.filter(server => {
-    const players = Number(server.players);
-    return Number.isFinite(players) && players > 0;
-  });
+  // Для Minecraft не скрываем серверы с нулевым онлайном:
+  // иначе каталог может выглядеть пустым, хотя мониторинг вернул серверы.
+  // Для остальных игр сохраняем прежний фильтр пустых серверов.
+  let list = currentGame === "minecraft"
+    ? [...serverItems]
+    : serverItems.filter(server => {
+        const players = Number(server.players);
+        return Number.isFinite(players) && players > 0;
+      });
 
   if (pageMode === "favorites") {
     list = list.filter(s => favorites.includes(String(s.slug)));
