@@ -1185,10 +1185,9 @@ function renderRows() {
         </td>
         <td>
           <div class="actions">
-            <button title="${t("join")}" onclick="connectServer('${esc(ip)}','${currentGame}')">▶</button>
-            <button title="${t("copy")}" onclick="copyIP('${esc(ip)}')">⧉</button>
-            <button class="${isFav ? "heart active" : "heart"}"
-                    onclick="toggleFavorite('${esc(s.slug)}')">
+            <button title="${t("join")}" data-action="connect" data-ip="${esc(ip)}" data-game="${esc(currentGame)}">▶</button>
+            <button title="${t("copy")}" data-action="copy" data-ip="${esc(ip)}">⧉</button>
+            <button class="${isFav ? "heart active" : "heart"}" data-action="favorite" data-slug="${esc(s.slug)}">
               ${isFav ? "♥" : "♡"}
             </button>
           </div>
@@ -1196,6 +1195,14 @@ function renderRows() {
       </tr>
     `;
   }).join("");
+  tbody.onclick = event => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+    const action = button.dataset.action;
+    if (action === "connect") connectServer(button.dataset.ip, button.dataset.game);
+    else if (action === "copy") copyIP(button.dataset.ip);
+    else if (action === "favorite") toggleFavorite(button.dataset.slug);
+  };
 }
 
 function toggleFavorite(slug) {
