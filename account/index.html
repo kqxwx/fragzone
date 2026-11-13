@@ -1,54 +1,32 @@
 <!doctype html>
-<html lang="ru">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#080b10">
-<title>Личный кабинет — FRAGZONE</title>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#080b10"><title>FRAGZONE — Личный кабинет</title>
 <style>
-:root{color-scheme:dark;--bg:#080b10;--panel:#101720;--panel2:#151f2b;--line:#25313d;--text:#f0f4f8;--muted:#8593a1;--green:#baff60;--red:#ff657b}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px Inter,Arial,sans-serif}
-a{color:var(--green);text-decoration:none}.wrap{max-width:1120px;margin:auto;padding:26px 20px}
-header{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:14px 0 24px;border-bottom:1px solid var(--line)}
-.logo{font-size:22px;font-weight:900;letter-spacing:1px;color:white}.logo span{color:var(--green)}
-nav{display:flex;gap:9px;flex-wrap:wrap}nav a,.btn{padding:10px 13px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);color:var(--text);font-weight:700;font-size:12px}
-h1{font-size:30px;margin:28px 0 7px}.sub{color:var(--muted);margin:0 0 24px;line-height:1.6}
-.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin:20px 0}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}
-.card small{display:block;color:var(--muted);font-size:11px;margin-bottom:9px}.value{font-size:19px;font-weight:800;overflow-wrap:anywhere}.muted{color:var(--muted)}
-.section{margin-top:28px}.section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}.section h2{font-size:18px;margin:0}
-.ticket{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:14px 2px;border-bottom:1px solid var(--line)}.ticket:last-child{border:0}.ticket strong{display:block;margin-bottom:5px}.ticket small{color:var(--muted)}
-.pill{border:1px solid #465a39;background:#1b2a1e;color:var(--green);border-radius:99px;padding:5px 9px;font-size:10px;white-space:nowrap}
-.empty,.notice{padding:18px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);line-height:1.6}.notice.error{color:var(--red)}
-.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}.primary{background:var(--green);color:#11190d;border:0}
-button{cursor:pointer}.btn:disabled{opacity:.5;cursor:wait}
-@media(max-width:700px){.wrap{padding:15px}.grid{grid-template-columns:1fr}.ticket{align-items:flex-start;flex-direction:column}header{align-items:flex-start;flex-direction:column}h1{font-size:25px}}
-</style>
-</head>
-<body>
-<div class="wrap">
-<header><a class="logo" href="/">FRAG<span>ZONE</span></a><nav><a href="/">Каталог серверов</a><a href="/support/">Поддержка</a><button class="btn" id="logout">Выйти</button></nav></header>
+:root{color-scheme:dark;--bg:#080b10;--panel:#101720;--panel2:#151f2b;--line:#25313d;--text:#f0f4f8;--muted:#8593a1;--green:#baff60;--red:#ff657b;--blue:#8bd4ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 80% -15%,#1c3024 0,transparent 38%),var(--bg);color:var(--text);font:14px Inter,system-ui,Arial,sans-serif}a{color:inherit;text-decoration:none}button{font:inherit;cursor:pointer}.wrap{max-width:1240px;margin:auto;padding:24px 22px 60px}
+header{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:10px 0 20px;border-bottom:1px solid var(--line)}.logo{font-size:24px;font-weight:950;letter-spacing:1px}.logo span{color:var(--green)}nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.nav-link,.btn{padding:10px 13px;border:1px solid var(--line);border-radius:10px;background:#111a24;color:var(--text);font-weight:750;font-size:12px}.nav-link:hover,.btn:hover{border-color:#779c4d}.nav-link.admin{border-color:#526b35;color:var(--green);background:#1b281a}.btn.primary{background:var(--green);color:#11190d;border:0}.btn:disabled{opacity:.5}
+.hero{position:relative;overflow:hidden;margin:24px 0 18px;padding:30px;border:1px solid #3b4c35;border-radius:20px;background:linear-gradient(115deg,#1b3425,#17212c 58%,#29213d)}.hero:after{content:"FZ";position:absolute;right:28px;top:-35px;font-size:170px;font-weight:1000;letter-spacing:-15px;color:#ffffff08;pointer-events:none}.eyebrow{font-size:9px;letter-spacing:2.5px;color:var(--green);font-weight:900}.hero h1{font-size:clamp(28px,4vw,42px);margin:12px 0 7px}.hero p{margin:0;color:#bac7c0;line-height:1.7;max-width:700px}.hero-bottom{display:flex;justify-content:space-between;align-items:center;gap:15px;position:relative;z-index:1}.role-pill{padding:8px 11px;border:1px solid #607e43;background:#23321e;color:var(--green);border-radius:99px;font-size:10px;font-weight:900;white-space:nowrap}
+.notice{padding:13px 15px;border:1px solid var(--line);border-radius:11px;margin:14px 0;color:var(--muted);line-height:1.6}.notice.error{border-color:var(--red);color:#ffabb7}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin:18px 0}.card{background:linear-gradient(145deg,#121c27,#0e151d);border:1px solid var(--line);border-radius:15px;padding:18px;min-width:0}.card-label{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:11px}.card-value{font-size:23px;font-weight:900;margin-top:13px;overflow-wrap:anywhere}.card-foot{font-size:10px;color:#71808e;margin-top:6px}
+.columns{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,.8fr);gap:15px;margin-top:22px}.section{min-width:0}.section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}.section h2{font-size:17px;margin:0}.section-head a{font-size:11px;color:var(--green)}.ticket-list{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:5px 17px}.ticket{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid #202b36}.ticket:last-child{border:0}.ticket-main{min-width:0}.ticket strong{display:block;margin-bottom:6px;overflow-wrap:anywhere}.ticket small{color:var(--muted);font-size:10px}.pill{border:1px solid #465a39;background:#1b2a1e;color:var(--green);border-radius:99px;padding:6px 9px;font-size:10px;white-space:nowrap}.pill.closed{color:#a9b5c1;border-color:#3b4650;background:#202a34}.empty{padding:20px 10px;color:var(--muted);line-height:1.6;font-size:12px}.side-stack{display:grid;gap:13px;align-content:start}.profile{display:flex;align-items:center;gap:13px}.avatar{width:48px;height:48px;display:grid;place-items:center;border-radius:15px;background:linear-gradient(135deg,#baff60,#5f9b38);color:#10170c;font-size:19px;font-weight:950}.profile strong{display:block;font-size:14px}.profile small{display:block;color:var(--muted);margin-top:5px;overflow-wrap:anywhere}.quick-links{display:grid;gap:8px;margin-top:13px}.quick-links a{display:flex;justify-content:space-between;align-items:center;padding:12px;border:1px solid var(--line);border-radius:10px;background:#0c131b;font-size:11px}.quick-links a:hover{border-color:#668748}.favorites-card p{font-size:11px;line-height:1.6;color:var(--muted)}.footer{display:flex;justify-content:space-between;gap:12px;margin-top:30px;color:#5d6c79;font-size:9px;letter-spacing:1px}
+@media(max-width:800px){.columns{grid-template-columns:1fr}}@media(max-width:620px){.wrap{padding:14px}.grid{grid-template-columns:1fr}.hero{padding:22px}.hero-bottom{align-items:flex-start;flex-direction:column}header{align-items:flex-start;flex-direction:column}.ticket{align-items:flex-start}.ticket .pill{margin-left:auto}.footer{flex-direction:column}}
+</style></head>
+<body><div class="wrap">
+<header><a class="logo" href="/">FRAG<span>ZONE</span></a><nav><a class="nav-link" href="/">Каталог серверов</a><a class="nav-link" href="/support/">Поддержка</a><a class="nav-link admin" id="adminLink" href="/support/admin.html" hidden>⚙ Админ-панель</a><button class="btn" id="logout">Выйти ↗</button></nav></header>
 <main>
-<h1>Личный кабинет</h1><p class="sub" id="welcome">Загружаем данные аккаунта…</p>
-<div id="notice" class="notice" hidden></div>
+<section class="hero"><div class="hero-bottom"><div><div class="eyebrow">YOUR FRAGZONE SPACE</div><h1>Личный кабинет</h1><p id="welcome">Загружаем профиль и последние события…</p></div><span class="role-pill" id="rolePill">ACCOUNT</span></div></section>
+<div id="notice" class="notice" hidden aria-live="polite"></div>
 <section class="grid" aria-label="Сводка аккаунта">
-<div class="card"><small>Имя пользователя</small><div class="value" id="username">—</div></div>
-<div class="card"><small>Email</small><div class="value" id="email">—</div></div>
-<div class="card"><small>Тип аккаунта</small><div class="value" id="role">—</div></div>
+<div class="card"><div class="card-label"><span>Мои обращения</span><span>✉</span></div><div class="card-value" id="ticketCount">—</div><div class="card-foot">Всего создано обращений</div></div>
+<div class="card"><div class="card-label"><span>Избранные серверы</span><span>♡</span></div><div class="card-value" id="favoritesCount">—</div><div class="card-foot">Сохранено на этом устройстве</div></div>
+<div class="card"><div class="card-label"><span>Статус аккаунта</span><span>◈</span></div><div class="card-value" id="accountStatus">Активен</div><div class="card-foot">FRAGZONE ID · <span id="accountId">—</span></div></div>
 </section>
-<section class="section">
-<div class="section-head"><h2>Мои обращения</h2><a href="/support/">Создать обращение →</a></div>
-<div class="card" id="tickets"><div class="muted">Загружаем обращения…</div></div>
-</section>
-<section class="section">
-<div class="section-head"><h2>Избранные серверы</h2><a href="/#catalog">Открыть каталог →</a></div>
-<div class="card"><div class="value" id="favoritesCount">0</div><p class="muted">Сохранено на этом устройстве. Избранное пока хранится в браузере и не синхронизируется между устройствами.</p><div class="actions"><a class="btn primary" href="/#catalog">Перейти к серверам</a></div></div>
-</section>
-<section class="section">
-<div class="section-head"><h2>Быстрые ссылки</h2></div>
-<div class="actions"><a class="btn" href="/support/my-tickets.html">Все мои обращения</a><a class="btn" href="/support/">Центр поддержки</a><a class="btn" id="adminLink" href="/support/admin.html" hidden>Панель администратора</a></div>
-</section>
-</main>
+<div class="columns">
+<section class="section"><div class="section-head"><h2>Последние обращения</h2><a href="/support/my-tickets.html">Все обращения →</a></div><div class="ticket-list" id="tickets"><div class="empty">Загружаем обращения…</div></div></section>
+<aside class="side-stack">
+<section class="card"><div class="eyebrow">PROFILE</div><h2 style="font-size:16px;margin:9px 0 15px">Твой профиль</h2><div class="profile"><div class="avatar" id="avatar">F</div><div><strong id="username">—</strong><small id="email">—</small></div></div><div class="quick-links"><a href="/support/">Создать обращение <span>↗</span></a><a href="/#catalog">Найти игровой сервер <span>↗</span></a><a href="/support/my-tickets.html">История обращений <span>↗</span></a><a id="adminQuickLink" href="/support/admin.html" hidden>Открыть админ-панель <span>↗</span></a></div></section>
+<section class="card favorites-card"><div class="eyebrow">YOUR COLLECTION</div><h2 style="font-size:16px;margin:9px 0">Избранное</h2><p>Список избранных серверов пока хранится в этом браузере. Открой каталог, чтобы добавить серверы в коллекцию.</p><a class="btn primary" href="/#catalog" style="display:inline-flex;margin-top:4px">Открыть каталог →</a></section>
+</aside></div>
+</main><div class="footer"><span>FRAGZONE · PLAYER SPACE</span><span>GAME SERVERS / COMMUNITY / SUPPORT</span></div>
 </div>
 <script>
 const $=id=>document.getElementById(id);
@@ -60,15 +38,18 @@ async function init(){
  try{
   const me=await api("/auth/me");
   if(!me.user){location.replace("/#accountPanel");return}
-  $("welcome").textContent="Рады видеть тебя, "+me.user.username+". Здесь собрана информация об аккаунте и обращениях в поддержку.";
-  $("username").textContent=me.user.username;$("email").textContent=me.user.email;$("role").textContent=me.user.role==="admin"?"Администратор":"Пользователь";
-  $("adminLink").hidden=me.user.role!=="admin";
+  const user=me.user,isAdmin=["admin","owner"].includes(user.role);
+  $("welcome").textContent="Добро пожаловать, "+user.username+". Здесь твой профиль, обращения и быстрые действия.";
+  $("username").textContent=user.username;$("email").textContent=user.email;$("avatar").textContent=(user.username||"F").trim().charAt(0).toUpperCase();
+  $("rolePill").textContent=user.role==="owner"?"ВЛАДЕЛЕЦ":user.role==="admin"?"АДМИНИСТРАТОР":"ИГРОК";
+  $("adminLink").hidden=!isAdmin;$("adminQuickLink").hidden=!isAdmin;
+  $("accountId").textContent=String(user.id||"").slice(0,8).toUpperCase()||"—";
   try{const favs=JSON.parse(localStorage.getItem("fragzone_live_favs")||"[]");$("favoritesCount").textContent=Array.isArray(favs)?favs.length:0}catch{$("favoritesCount").textContent="—"}
-  const data=await api("/tickets");
-  $("tickets").innerHTML=data.tickets.length?data.tickets.map(t=>'<a class="ticket" href="/support/my-ticket.html?id='+encodeURIComponent(t.id)+'"><span><strong>'+esc(t.subject)+'</strong><small>Обновлено: '+esc(t.updated_at||t.created_at||"—")+'</small></span><span class="pill">'+esc(statusNames[t.status]||t.status)+'</span></a>').join(""):'<div class="empty">Пока нет обращений. Если понадобится помощь, создай обращение в центре поддержки.</div>';
+  const data=await api("/tickets"),items=Array.isArray(data.tickets)?data.tickets:[];
+  $("ticketCount").textContent=items.length;
+  $("tickets").innerHTML=items.length?items.slice(0,6).map(t=>'<a class="ticket" href="/support/my-ticket.html?id='+encodeURIComponent(t.id)+'"><span class="ticket-main"><strong>'+esc(t.subject)+'</strong><small>Обновлено: '+esc(t.updated_at||t.created_at||"—")+'</small></span><span class="pill '+(t.status==="closed"?"closed":"")+'">'+esc(statusNames[t.status]||t.status)+'</span></a>').join(""):'<div class="empty">Пока нет обращений. Создай первое обращение в центре поддержки — оно появится здесь.</div>';
  }catch(error){showError(error.message);$("tickets").innerHTML='<div class="empty">Не удалось загрузить обращения.</div>'}
 }
 $("logout").addEventListener("click",async()=>{const b=$("logout");b.disabled=true;try{await api("/auth/logout",{method:"POST",body:"{}"});location.replace("/")}catch(error){showError(error.message);b.disabled=false}});
 init();
-</script>
-</body></html>
+</script></body></html>
