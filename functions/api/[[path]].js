@@ -59,7 +59,7 @@ async function handle(request,env){
   if(!validEmail(email))return fail("Укажите корректный email");
   if(username.length<2)return fail("Имя должно содержать минимум 2 символа");
   if(password.length<10||password.length>128)return fail("Пароль должен содержать от 10 до 128 символов");
-  if(email===(env.ADMIN_EMAIL||"").toLowerCase())return fail("Этот email зарезервирован для администратора",409);
+  if(email===clean(env.ADMIN_EMAIL,254).toLowerCase())return fail("Этот email зарезервирован для владельца",409);
   if(await env.DB.prepare("SELECT id FROM users WHERE email=?").bind(email).first())return fail("Аккаунт с таким email уже существует",409);
   const salt=randomHex(16),hash="pbkdf2$"+PBKDF2_ITERATIONS+"$"+salt+"$"+await derivePassword(password,salt),id=crypto.randomUUID();
   await env.DB.prepare("INSERT INTO users(id,email,username,password_hash,role) VALUES(?,?,?,?,'user')").bind(id,email,username,hash).run();
@@ -140,15 +140,17 @@ async function handle(request,env){
  }
  if(path==="admin/tickets"&&method==="GET"){
   const user=await currentUser(request,env);if(user?.role!=="admin")return fail("Требуется вход администратора",403);
-  const status=url.searchParams.get("status")||"all",result=status==="all"?await env.DB.prepare("SELECT * FROM tickets ORDER BY updated_at DESC LIMIT 300").all():await env.DB.prepare("SELECT * FROM tickets WHERE status=? ORDER BY updated_at DESC LIMIT 300").bind(status).all();
-  return json({tickets:result.results});
+  const status=url.searchParams.get("status")||"all";if(!["all","open","in_progress","answered","closed"].includes(status))return fail("Недопустимый фильтр статуса");
+  const sql="SELECT t.*,u.email AS user_email,u.username AS user_name,(SELECT COUNT(*) FROM comments c WHERE c.ticket_id=t.id) AS comment_count FROM tickets t LEFT JOIN users u ON u.id=t.user_id "+(status==="all"?"":"WHERE t.status=? ")+"ORDER BY t.updated_at DESC LIMIT 300";
+  const result=status==="all"?await env.DB.prepare(sql).all():await env.DB.prepare(sql).bind(status).all();
+  return json({tickets:result.results,total:result.results.length});
  }
  const adminTicket=path.match(/^admin\/tickets\/([0-9a-f-]{36})$/i);
  if(adminTicket&&method==="PATCH"){
   const user=await currentUser(request,env);if(user?.role!=="admin")return fail("Требуется вход администратора",403);
   const body=await readBody(request),status=["open","in_progress","answered","closed"].includes(body.status)?body.status:null,priority=["low","normal","high","urgent"].includes(body.priority)?body.priority:null;
   if(!status&&!priority)return fail("Нет допустимых изменений");
-  await env.DB.prepare("UPDATE tickets SET status=COALESCE(?,status),priority=COALESCE(?,priority),updated_at=datetime('now') WHERE id=?").bind(status,priority,adminTicket[1]).run();return json({ok:true});
+  const result=await env.DB.prepare("UPDATE tickets SET status=COALESCE(?,status),priority=COALESCE(?,priority),updated_at=datetime('now') WHERE id=?").bind(status,priority,adminTicket[1]).run();if(!result.meta?.changes)return fail("Обращение не найдено",404);return json({ok:true});
  }
  return fail("Маршрут не найден",404);
 }
