@@ -1,1 +1,33 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Админ-панель — FRAGZONE</title><link rel="stylesheet" href="/support/support.css"></head><body data-page="admin"><main class="fz-wrap"><header class="fz-head"><a href="/">FRAGZONE</a><span>Администрирование</span></header><div id="notice" class="notice" hidden></div><section id="adminLogin" class="fz-panel"><h1>Вход администратора</h1><form id="adminLoginForm"><div class="fz-field"><label>Email администратора</label><input name="email" type="email" required></div><div class="fz-field"><label>Пароль</label><input name="password" type="password" required></div><button class="fz-btn">Войти</button></form></section><section id="adminPanel" class="fz-panel" hidden><h1>Тикеты</h1><div id="adminTickets"></div></section></main><script src="/support/support.js"></script></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080b10">
+<title>FRAGZONE — Панель управления</title>
+<link rel="stylesheet" href="/support/support.css">
+</head>
+<body data-page="admin">
+<main class="fz-wrap fz-admin-wrap">
+<header class="fz-head"><a class="fz-brand" href="/">FRAG<span>ZONE</span></a><nav class="fz-head-nav"><a href="/account/">Личный кабинет</a><a href="/">Каталог</a><span class="fz-head-label">Панель управления</span></nav></header>
+<div id="notice" class="notice" hidden></div>
+<section id="adminLogin" class="fz-panel fz-login-panel">
+<div class="fz-eyebrow">SECURE ACCESS / FRAGZONE</div><h1>Вход в панель управления</h1><p class="fz-muted">Войдите под учётной записью администратора или владельца.</p>
+<form id="adminLoginForm" class="fz-login-form">
+<div class="fz-field"><label>Email</label><input name="email" type="email" autocomplete="username" required></div>
+<div class="fz-field"><label>Пароль</label><input name="password" type="password" autocomplete="current-password" required></div>
+<button class="fz-btn">Войти в панель <span>→</span></button>
+</form></section>
+<section id="adminPanel" hidden>
+<div class="fz-admin-hero"><div><div class="fz-eyebrow">CONTROL CENTER</div><h1>Панель управления</h1><p id="adminWelcome" class="fz-muted">Управляй обращениями и командой FRAGZONE.</p></div><div class="fz-admin-hero-actions"><a class="fz-btn fz-btn-ghost" href="/account/">Личный кабинет</a><button id="adminRefresh" class="fz-btn">↻ Обновить</button></div></div>
+<div class="fz-admin-stats" id="adminStats">
+<div class="fz-stat"><small>Всего обращений</small><strong id="statAll">—</strong></div><div class="fz-stat"><small>Открытые</small><strong id="statOpen">—</strong></div><div class="fz-stat"><small>В работе</small><strong id="statProgress">—</strong></div><div class="fz-stat"><small>Закрытые</small><strong id="statClosed">—</strong></div>
+</div>
+<section class="fz-panel"><div class="fz-admin-section-head"><div><div class="fz-eyebrow">SUPPORT DESK</div><h2>Обращения</h2></div><span id="ticketCount" class="fz-counter">Загрузка…</span></div>
+<div class="fz-admin-toolbar"><input id="ticketSearch" type="search" placeholder="Поиск по теме, пользователю или ID…"><select id="ticketStatus"><option value="all">Все статусы</option><option value="open">Открытые</option><option value="in_progress">В работе</option><option value="answered">Отвеченные</option><option value="closed">Закрытые</option></select></div>
+<div id="adminTickets" class="fz-admin-list"><div class="fz-muted">Загружаем обращения…</div></div></section>
+<section class="fz-panel" id="teamPanel" hidden><div class="fz-admin-section-head"><div><div class="fz-eyebrow">ACCESS CONTROL</div><h2>Команда и роли</h2><p class="fz-muted">Назначай администраторами зарегистрированных пользователей. Владелец защищён и не может быть понижен.</p></div><span class="fz-owner-badge">OWNER ONLY</span></div><div id="adminUsers" class="fz-user-list"><div class="fz-muted">Загрузка пользователей…</div></div></section>
+<div class="fz-admin-footer"><span>FRAGZONE CONTROL CENTER</span><span>Доступ зависит от роли аккаунта</span></div>
+</section>
+</main>
+<script src="/support/support.js"></script>
+</body></html>
