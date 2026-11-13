@@ -18,16 +18,21 @@ async function home(){
  if($("#logoutBtn"))$("#logoutBtn").onclick=async()=>{try{await api("/auth/logout",{method:"POST",body:"{}"});location.reload();}catch(err){notice(err.message,true);}};
  if($("#accountPanel"))$("#accountPanel").hidden=!!me.user;
  const ticketButton=$("#guestTicketForm button[type=submit], #guestTicketForm button");
- if($("#ticketAuthHint"))$("#ticketAuthHint").hidden=!!me.user;
- if(ticketButton)ticketButton.disabled=!me.user;
+ if($("#ticketAuthHint"))$("#ticketAuthHint").hidden=false;
+ if($("#guestFields"))$("#guestFields").hidden=!!me.user;
+ for(const field of $("#guestFields")?.querySelectorAll("input")||[])field.required=!me.user;
+ if(ticketButton)ticketButton.disabled=false;
 
  $("#guestTicketForm").onsubmit=async e=>{
-  e.preventDefault();const form=e.currentTarget;hideNotice();if(!me.user){notice("Сначала войдите или создайте аккаунт.",true);$("#accountPanel")?.scrollIntoView({behavior:"smooth"});return;}const f=new FormData(form);
+  e.preventDefault();const form=e.currentTarget,button=form.querySelector('button[type="submit"]');hideNotice();
+  const f=new FormData(form),kind=String(f.get("kind")||"БАГ"),subject=("["+kind+"] "+String(f.get("subject")||"").trim()).slice(0,120);
+  button.disabled=true;const originalText=button.textContent;button.textContent="Отправляем…";
   try{
-   const d=await api("/tickets",{method:"POST",body:JSON.stringify({subject:f.get("subject"),message:f.get("message")})});
-   $("#guestResult").innerHTML='Обращение создано. <a href="/support/my-tickets.html">Открыть мои обращения</a>.';
+   const d=await api("/tickets",{method:"POST",body:JSON.stringify({subject,message:f.get("message"),name:f.get("name"),email:f.get("email"),website:f.get("website")})});
+   $("#guestResult").innerHTML='Обращение создано! '+(d.ticket.url?'<a href="'+esc(d.ticket.url)+'">Открыть и сохранить ссылку на тикет</a>':'<a href="/support/my-tickets.html">Посмотреть мои обращения</a>')+'. Ссылка для гостевого обращения содержит секретный ключ — не передавай её посторонним.';
    $("#guestResult").hidden=false;form.reset();
   }catch(err){notice(err.message,true);}
+  finally{button.disabled=false;button.textContent=originalText;}
  };
  if(me.user){
   try {const d=await api("/tickets");$("#myTickets").innerHTML=d.tickets.map(t=>'<a class="fz-ticket" href="/support/my-ticket.html?id='+encodeURIComponent(t.id)+'"><b>'+esc(t.subject)+'</b><span>'+esc(t.status)+' · '+esc(t.updated_at)+'</span></a>').join("")||"<p>Обращений пока нет.</p>";$("#myTicketsWrap").hidden=false;}
@@ -45,12 +50,24 @@ async function ticket(){
  const p=new URLSearchParams(location.search),id=p.get("id"),key=p.get("key");if(!id)return notice("Не указан номер обращения",true);
  try{
   const d=await api("/tickets/"+encodeURIComponent(id)+(key?"?key="+encodeURIComponent(key):""));
-  $("#ticketTitle").textContent=d.ticket.subject;$("#ticketMeta").textContent="Статус: "+d.ticket.status+" · Создано: "+d.ticket.created_at;
+  const statusNames={open:"Открыт",in_progress:"В работе",answered:"Есть ответ",closed:"Закрыт"};
+  $("#ticketTitle").textContent=d.ticket.subject;
+  $("#ticketMeta").textContent="Статус: "+(statusNames[d.ticket.status]||d.ticket.status)+" · Создано: "+d.ticket.created_at;
   $("#comments").innerHTML=d.comments.map(c=>'<article class="fz-comment"><b>'+esc(c.author_name)+'</b><time>'+esc(c.created_at)+'</time><p>'+esc(c.body)+'</p></article>').join("")||"<p>Пока нет сообщений.</p>";
-  const me=await api("/auth/me");
-  if(me.user&&(["admin","owner"].includes(me.user.role)||d.ticket.user_id===me.user.id)){
-   $("#commentFormWrap").hidden=false;$("#commentForm").onsubmit=async e=>{e.preventDefault();try{await api("/tickets/"+encodeURIComponent(id)+"/comments",{method:"POST",body:JSON.stringify({body:$("#commentBody").value})});location.reload();}catch(err){notice(err.message,true);}};
-  }else $("#loginCommentHint").hidden=false;
+  const me=await api("/auth/me"),isAdmin=!!(me.user&&["admin","owner"].includes(me.user.role)),isOwner=!!(me.user&&d.ticket.user_id===me.user.id),isGuest=!!key;
+  const canManage=isAdmin||isOwner||isGuest;
+  if(canManage&&d.ticket.status!=="closed"){
+   $("#ticketActions").hidden=false;
+   $("#closeTicket").onclick=async()=>{const b=$("#closeTicket");b.disabled=true;try{await api("/tickets/"+encodeURIComponent(id),{method:"PATCH",body:JSON.stringify({status:"closed",key})});location.reload();}catch(e){notice(e.message,true);b.disabled=false;}};
+  }
+  if(isAdmin&&d.ticket.status==="closed"){
+   $("#ticketActions").hidden=false;$("#closeTicket").hidden=true;$("#reopenTicket").hidden=false;
+   $("#reopenTicket").onclick=async()=>{const b=$("#reopenTicket");b.disabled=true;try{await api("/tickets/"+encodeURIComponent(id),{method:"PATCH",body:JSON.stringify({status:"open"})});location.reload();}catch(e){notice(e.message,true);b.disabled=false;}};
+  }
+  if(canManage&&d.ticket.status!=="closed"){
+   $("#commentFormWrap").hidden=false;
+   $("#commentForm").onsubmit=async e=>{e.preventDefault();const b=e.currentTarget.querySelector("button");b.disabled=true;try{await api("/tickets/"+encodeURIComponent(id)+"/comments",{method:"POST",body:JSON.stringify({body:$("#commentBody").value,key})});location.reload();}catch(err){notice(err.message,true);b.disabled=false;}};
+  }else if(!canManage)$("#loginCommentHint").hidden=false;
  }catch(err){notice(err.message,true);}
 }
 async function myTickets(){const d=await api("/tickets");$("#ticketList").innerHTML=d.tickets.map(t=>'<a class="fz-ticket" href="/support/my-ticket.html?id='+encodeURIComponent(t.id)+'"><b>'+esc(t.subject)+'</b><span>'+esc(t.status)+' · '+esc(t.updated_at)+'</span></a>').join("")||"<p>Обращений пока нет.</p>";}
@@ -65,12 +82,15 @@ async function admin(){
   const query=($("#ticketSearch")?.value||"").trim().toLowerCase(),status=$("#ticketStatus")?.value||"all";
   const filtered=tickets.filter(t=>(status==="all"||t.status===status)&&[t.subject,t.guest_email,t.guest_name,t.user_email,t.user_name,t.user_id,t.id].join(" ").toLowerCase().includes(query));
   $("#ticketCount").textContent=filtered.length+" из "+tickets.length;
-  $("#adminTickets").innerHTML=filtered.map(t=>'<article class="fz-admin-ticket"><div class="fz-admin-ticket-main"><div class="fz-ticket-title">'+esc(t.subject)+'</div><div class="fz-ticket-meta">'+esc(t.guest_email||t.guest_name||t.user_email||t.user_name||"Пользователь")+' · '+esc(t.created_at||"")+'</div><div class="fz-ticket-id">ID: '+esc(t.id)+'</div></div><div class="fz-ticket-controls"><label>Статус<select data-status="'+esc(t.id)+'">'+statusOptions+'</select></label><label>Приоритет<select data-priority="'+esc(t.id)+'">'+priorityOptions+'</select></label><a class="fz-btn fz-btn-ghost" href="/support/ticket.html?id='+encodeURIComponent(t.id)+'">Открыть →</a></div></article>').join("")||'<div class="fz-empty">'+(tickets.length?"По заданным фильтрам ничего не найдено.":"В базе D1 API не вернул ни одного обращения. Если обращения точно существуют, проверьте привязку DB у Production и среду, в которой они создавались.")+'</div>';
+  $("#adminTickets").innerHTML=filtered.map(t=>'<article class="fz-admin-ticket"><div class="fz-admin-ticket-main"><div class="fz-ticket-title">'+esc(t.subject)+'</div><div class="fz-ticket-meta">'+esc(t.guest_email||t.guest_name||t.user_email||t.user_name||"Пользователь")+' · '+esc(t.created_at||"")+'</div><div class="fz-ticket-id">ID: '+esc(t.id)+'</div></div><div class="fz-ticket-controls"><label>Статус<select data-status="'+esc(t.id)+'">'+statusOptions+'</select></label><label>Приоритет<select data-priority="'+esc(t.id)+'">'+priorityOptions+'</select></label><button class="fz-btn fz-btn-ghost" type="button" data-quick-status="'+esc(t.id)+'">'+(t.status==="closed"?"Открыть снова":"Закрыть")+'</button><a class="fz-btn fz-btn-ghost" href="/support/ticket.html?id='+encodeURIComponent(t.id)+'">Детали →</a></div></article>').join("")||'<div class="fz-empty">'+(tickets.length?"По заданным фильтрам ничего не найдено.":"В базе D1 API не вернул ни одного обращения. Если обращения точно существуют, проверьте привязку DB у Production и среду, в которой они создавались.")+'</div>';
   for(const t of filtered){
    const statusEl=document.querySelector('[data-status="'+CSS.escape(t.id)+'"]'),priorityEl=document.querySelector('[data-priority="'+CSS.escape(t.id)+'"]');
    statusEl.value=t.status;priorityEl.value=t.priority;
    const save=async()=>{statusEl.disabled=true;priorityEl.disabled=true;try{await api("/admin/tickets/"+encodeURIComponent(t.id),{method:"PATCH",body:JSON.stringify({status:statusEl.value,priority:priorityEl.value})});t.status=statusEl.value;t.priority=priorityEl.value;notice("Изменения сохранены");renderStats();}catch(e){notice(e.message,true);}finally{statusEl.disabled=false;priorityEl.disabled=false;}};
    statusEl.onchange=save;priorityEl.onchange=save;
+   const quick=document.querySelector('[data-quick-status="'+CSS.escape(t.id)+'"]');
+   quick.onclick=async()=>{quick.disabled=true;const next=t.status==="closed"?"open":"closed";try{await api("/admin/tickets/"+encodeURIComponent(t.id),{method:"PATCH",body:JSON.stringify({status:next})});t.status=next;notice(next==="closed"?"Тикет закрыт":"Тикет снова открыт");renderStats();renderTickets();}catch(e){notice(e.message,true);quick.disabled=false;}};
+
   }
  };
  const renderStats=()=>{

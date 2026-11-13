@@ -539,6 +539,24 @@ footer a {
 .account-form .account-wide{grid-column:1/-1}.account-form button{border:0;border-radius:8px;background:var(--green);color:#11190d;padding:11px;font-weight:800}.account-switch{background:transparent!important;color:var(--green)!important;border:1px solid var(--line)!important}.account-message{grid-column:1/-1;margin:0;color:var(--muted);font-size:11px;line-height:1.5}.account-message.error{color:var(--red)}.account-user{display:flex;align-items:center;justify-content:flex-end;gap:12px;font-size:12px}.account-user button{background:var(--panel2);border:1px solid var(--line);color:white;padding:10px;border-radius:8px}
 @media(max-width:760px){.account-panel{grid-template-columns:1fr;padding:17px}.account-user{justify-content:flex-start}.account-form{grid-template-columns:1fr}.account-form .account-wide{grid-column:auto}}
 
+
+/* Smooth, restrained motion across the interface */
+html{scroll-behavior:smooth;scroll-padding-top:84px}
+button,a,input,select,textarea,.stat,.hero,.account-panel,.popular-game,.table-wrap,.fz-ticket,.fz-panel{
+ transition:background-color .26s ease,color .26s ease,border-color .26s ease,box-shadow .26s ease,transform .26s cubic-bezier(.2,.7,.2,1),opacity .26s ease;
+}
+button:not(:disabled):hover,.popular-game:hover,.stat:hover,.fz-ticket:hover{transform:translateY(-2px)}
+button:active,.popular-game:active{transform:translateY(0) scale(.985)}
+button:disabled{cursor:wait;opacity:.58}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--green);outline-offset:3px}
+.nav button,.site-url,.primary,.secondary,.top-button{transition:all .28s ease}
+.nav button:hover{transform:translateX(3px)}
+@keyframes fz-soft-enter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.hero,.account-panel,.stats,.popular-games,#catalog{animation:fz-soft-enter .48s ease both}
+@media(prefers-reduced-motion:reduce){
+ html{scroll-behavior:auto}
+ *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+}
 </style>
 </head>
 
