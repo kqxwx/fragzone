@@ -96,7 +96,7 @@ async function handle(request,env){
   await env.DB.prepare("INSERT INTO tickets(id,user_id,guest_name,guest_email,access_hash,subject,status,priority,created_at,updated_at) VALUES(?,?,?,?,?,?,'open','normal',datetime('now'),datetime('now'))").bind(id,user?.id||null,user?null:guestName,user?null:guestEmail,guestKey?await sha256(guestKey):null,subject).run();
   await env.DB.prepare("INSERT INTO comments(id,ticket_id,user_id,author_name,body,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),id,user?.id||null,author,message).run();
   const ticketUrl="/support/ticket.html?id="+encodeURIComponent(id)+(guestKey?"&key="+encodeURIComponent(guestKey):"");
-  return json({ticket:{id,subject,status:"open",url:ticketUrl,guestKey:guestKey||null}},201);
+  return json({ticket:{id,subject,status:"open",url:ticketUrl}},201);
  }
  if(path==="tickets"&&method==="GET"){
   const user=await currentUser(request,env);if(!user)return fail("Войдите, чтобы просматривать свои обращения",401);
