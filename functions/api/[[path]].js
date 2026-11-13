@@ -127,6 +127,17 @@ async function handle(request,env){
   const ownerEmail=clean(env.ADMIN_EMAIL,254).toLowerCase();
   return json({users:result.results.map(item=>({...item,role:String(item.email).toLowerCase()===ownerEmail?"owner":item.role}))});
  }
+ if(path==="admin/users"&&method==="POST"){
+  const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец может управлять администраторами",403);
+  const body=await readBody(request),email=clean(body.email,254).toLowerCase(),role=body.role;
+  if(!validEmail(email))return fail("Укажите корректный email");
+  if(!["user","admin"].includes(role))return fail("Допустимые роли: user или admin");
+  if(email===clean(env.ADMIN_EMAIL,254).toLowerCase())return fail("Нельзя изменить роль владельца",403);
+  const target=await env.DB.prepare("SELECT id,email,username FROM users WHERE email=?").bind(email).first();
+  if(!target)return fail("Пользователь с таким email не найден. Сначала он должен зарегистрироваться.",404);
+  await env.DB.prepare("UPDATE users SET role=? WHERE id=?").bind(role,target.id).run();
+  return json({ok:true,user:{id:target.id,email:target.email,username:target.username,role}});
+ }
  const adminUser=path.match(new RegExp("^admin/users/([0-9a-f-]{36})$","i"));
  if(adminUser&&method==="PATCH"){
   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец может управлять администраторами",403);
