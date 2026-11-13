@@ -78,12 +78,15 @@ async function handle(request,env){
  if(path==="auth/logout"&&method==="POST"){const token=getCookie(request);if(token)await env.DB.prepare("DELETE FROM sessions WHERE token_hash=?").bind(await sha256(token)).run();return json({ok:true},200,{"set-cookie":setCookie("",0)});}
  if(path==="tickets"&&method==="POST"){
   const body=await readBody(request),user=await currentUser(request,env),subject=clean(body.subject,120),message=clean(body.message,5000);
-  if(!user)return fail("Войдите или создайте аккаунт, чтобы отправить обращение",401);
+  const guestName=clean(body.name,60),guestEmail=clean(body.email,254).toLowerCase();
+  if(clean(body.website,200))return fail("Не удалось отправить обращение",400);
   if(subject.length<4||message.length<10)return fail("Тема — минимум 4 символа, описание — минимум 10");
-  const id=crypto.randomUUID();
-  await env.DB.prepare(`INSERT INTO tickets(id,user_id,guest_name,guest_email,access_hash,subject,status,priority,created_at,updated_at) VALUES(?,?,NULL,NULL,NULL,?,'open','normal',datetime('now'),datetime('now'))`).bind(id,user.id,subject).run();
-  await env.DB.prepare("INSERT INTO comments(id,ticket_id,user_id,author_name,body,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),id,user.id,user.username,message).run();
-  return json({ticket:{id,subject,status:"open"}},201);
+  if(!user&&(!guestName||!validEmail(guestEmail)))return fail("Для отправки без аккаунта укажите имя и корректный email");
+  const id=crypto.randomUUID(),guestKey=user?null:randomHex(32),author=user?user.username:guestName;
+  await env.DB.prepare("INSERT INTO tickets(id,user_id,guest_name,guest_email,access_hash,subject,status,priority,created_at,updated_at) VALUES(?,?,?,?,?,?,'open','normal',datetime('now'),datetime('now'))").bind(id,user?.id||null,user?null:guestName,user?null:guestEmail,guestKey?await sha256(guestKey):null,subject).run();
+  await env.DB.prepare("INSERT INTO comments(id,ticket_id,user_id,author_name,body,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),id,user?.id||null,author,message).run();
+  const ticketUrl="/support/ticket.html?id="+encodeURIComponent(id)+(guestKey?"&key="+encodeURIComponent(guestKey):"");
+  return json({ticket:{id,subject,status:"open",url:ticketUrl,guestKey:guestKey||null}},201);
  }
  if(path==="tickets"&&method==="GET"){
   const user=await currentUser(request,env);if(!user)return fail("Войдите, чтобы просматривать свои обращения",401);
@@ -96,17 +99,29 @@ async function handle(request,env){
   const allowed=isAdmin(user,env)||(user&&ticket.user_id===user.id)||(key&&ticket.access_hash&&await sha256(key)===ticket.access_hash);
   if(!allowed)return fail("Нет доступа к обращению",403);
   const comments=await env.DB.prepare("SELECT id,author_name,body,created_at FROM comments WHERE ticket_id=? ORDER BY created_at").bind(id).all();
-  return json({ticket:{id:ticket.id,user_id:ticket.user_id,subject:ticket.subject,status:ticket.status,priority:ticket.priority,created_at:ticket.created_at},comments:comments.results});
+  return json({ticket:{id:ticket.id,user_id:ticket.user_id,guest_name:ticket.guest_name,guest_email:ticket.guest_email,subject:ticket.subject,status:ticket.status,priority:ticket.priority,created_at:ticket.created_at},comments:comments.results});
+ }
+ if(ticketMatch&&method==="PATCH"){
+  const body=await readBody(request),user=await currentUser(request,env),id=ticketMatch[1],ticket=await env.DB.prepare("SELECT * FROM tickets WHERE id=?").bind(id).first();
+  if(!ticket)return fail("Обращение не найдено",404);
+  const key=clean(body.key,128),guestAllowed=!!(key&&ticket.access_hash&&await sha256(key)===ticket.access_hash),admin=isAdmin(user,env),owner=!!(user&&ticket.user_id===user.id);
+  if(!admin&&!owner&&!guestAllowed)return fail("Нет доступа к обращению",403);
+  const status=clean(body.status,20);
+  if(status!=="closed"&&!(admin&&["open","in_progress","answered"].includes(status)))return fail("Можно только закрыть своё обращение. Повторное открытие доступно администратору.",403);
+  await env.DB.prepare("UPDATE tickets SET status=?,updated_at=datetime('now') WHERE id=?").bind(status,id).run();
+  return json({ok:true,status});
  }
  const commentMatch=path.match(/^tickets\/([0-9a-f-]{36})\/comments$/i);
  if(commentMatch&&method==="POST"){
-  const user=await currentUser(request,env);if(!user)return fail("Войдите в аккаунт, чтобы комментировать",401);
-  const id=commentMatch[1],ticket=await env.DB.prepare("SELECT * FROM tickets WHERE id=?").bind(id).first();
+  const body=await readBody(request),user=await currentUser(request,env),id=commentMatch[1],ticket=await env.DB.prepare("SELECT * FROM tickets WHERE id=?").bind(id).first();
   if(!ticket)return fail("Обращение не найдено",404);
-  if(!isAdmin(user,env)&&ticket.user_id!==user.id)return fail("Нет доступа к обращению",403);
-  const body=await readBody(request),message=clean(body.body,5000);if(message.length<2)return fail("Комментарий слишком короткий");
-  await env.DB.prepare("INSERT INTO comments(id,ticket_id,user_id,author_name,body,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),id,user.id,user.username,message).run();
-  await env.DB.prepare("UPDATE tickets SET updated_at=datetime('now') WHERE id=?").bind(id).run();return json({ok:true},201);
+  const key=clean(body.key,128),guestAllowed=!!(key&&ticket.access_hash&&await sha256(key)===ticket.access_hash);
+  if(!isAdmin(user,env)&&!(user&&ticket.user_id===user.id)&&!guestAllowed)return fail("Нет доступа к обращению",403);
+  if(ticket.status==="closed"&&!isAdmin(user,env))return fail("Обращение закрыто. Если проблема повторилась, создайте новое.",409);
+  const message=clean(body.body,5000);if(message.length<2)return fail("Комментарий слишком короткий");
+  const author=user?user.username:(ticket.guest_name||"Автор обращения");
+  await env.DB.prepare("INSERT INTO comments(id,ticket_id,user_id,author_name,body,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),id,user?.id||null,author,message).run();
+  await env.DB.prepare("UPDATE tickets SET updated_at=datetime('now'),status=CASE WHEN status='answered' THEN 'open' ELSE status END WHERE id=?").bind(id).run();return json({ok:true},201);
  }
  if(path==="admin/login"&&method==="POST"){
   const body=await readBody(request),email=clean(body.email,254).toLowerCase(),password=typeof body.password==="string"?body.password:"";
