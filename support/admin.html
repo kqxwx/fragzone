@@ -27,7 +27,7 @@
 <div id="adminTickets" class="fz-admin-list"><div class="fz-muted">Загружаем обращения…</div></div></section>
 <section class="fz-panel" id="teamPanel" hidden><div class="fz-admin-section-head"><div><div class="fz-eyebrow">ACCESS CONTROL</div><h2>Команда и роли</h2><p class="fz-muted">Назначай администраторами зарегистрированных пользователей. Владелец защищён и не может быть понижен.</p></div><span class="fz-owner-badge">OWNER ONLY</span></div><form id="adminRoleForm" class="fz-admin-toolbar">
 <input id="adminUserEmail" name="email" type="email" placeholder="Email зарегистрированного пользователя" required>
-<select id="adminUserRole"><option value="admin">Назначить администратором</option><option value="user">Снять права администратора</option></select>
+<select id="adminUserRole" name="role"><option value="admin">Назначить администратором</option><option value="user">Снять права администратора</option></select>
 <button class="fz-btn" type="submit">Применить</button>
 </form>
 <p class="fz-muted">Можно назначить роль по email. Пользователь должен сначала создать аккаунт. Владелец защищён от изменения.</p>
