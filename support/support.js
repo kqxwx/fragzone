@@ -56,13 +56,15 @@ async function ticket(){
   $("#comments").innerHTML=d.comments.map(c=>'<article class="fz-comment"><b>'+esc(c.author_name)+'</b><time>'+esc(c.created_at)+'</time><p>'+esc(c.body)+'</p></article>').join("")||"<p>Пока нет сообщений.</p>";
   const me=await api("/auth/me"),isAdmin=!!(me.user&&["admin","owner"].includes(me.user.role)),isOwner=!!(me.user&&d.ticket.user_id===me.user.id),isGuest=!!key;
   const canManage=isAdmin||isOwner||isGuest;
-  if(canManage&&d.ticket.status!=="closed"){
-   $("#ticketActions").hidden=false;
-   $("#closeTicket").onclick=async()=>{const b=$("#closeTicket");b.disabled=true;try{await api("/tickets/"+encodeURIComponent(id),{method:"PATCH",body:JSON.stringify({status:"closed",key})});location.reload();}catch(e){notice(e.message,true);b.disabled=false;}};
+  const ticketActions=$("#ticketActions"),closeButton=$("#closeTicket"),reopenButton=$("#reopenTicket");
+  // Personal-ticket page intentionally has no status-action toolbar.
+  if(ticketActions&&closeButton&&canManage&&d.ticket.status!=="closed"){
+   ticketActions.hidden=false;
+   closeButton.onclick=async()=>{closeButton.disabled=true;try{await api("/tickets/"+encodeURIComponent(id),{method:"PATCH",body:JSON.stringify({status:"closed",key})});location.reload();}catch(e){notice(e.message,true);closeButton.disabled=false;}};
   }
-  if(isAdmin&&d.ticket.status==="closed"){
-   $("#ticketActions").hidden=false;$("#closeTicket").hidden=true;$("#reopenTicket").hidden=false;
-   $("#reopenTicket").onclick=async()=>{const b=$("#reopenTicket");b.disabled=true;try{await api("/tickets/"+encodeURIComponent(id),{method:"PATCH",body:JSON.stringify({status:"open"})});location.reload();}catch(e){notice(e.message,true);b.disabled=false;}};
+  if(ticketActions&&closeButton&&reopenButton&&isAdmin&&d.ticket.status==="closed"){
+   ticketActions.hidden=false;closeButton.hidden=true;reopenButton.hidden=false;
+   reopenButton.onclick=async()=>{reopenButton.disabled=true;try{await api("/tickets/"+encodeURIComponent(id),{method:"PATCH",body:JSON.stringify({status:"open"})});location.reload();}catch(e){notice(e.message,true);reopenButton.disabled=false;}};
   }
   if(canManage&&d.ticket.status!=="closed"){
    $("#commentFormWrap").hidden=false;
