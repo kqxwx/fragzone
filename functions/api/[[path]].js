@@ -366,7 +366,7 @@ async function handle(request,env){
  if(path==="admin/2fa/reset"&&method==="POST"){
   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);
   const body=await readBody(request),userId=clean(body.userId,64);if(!userId||userId===actor.id)return fail("Нельзя сбросить 2FA владельца этим способом");
-  const target=await env.DB.prepare("SELECT id,email FROM users WHERE id=?").bind(userId).first();if(!target||staffLevel(target,env)<1)return fail("Сотрудник не найден",404);
+  const target=await env.DB.prepare("SELECT id,email,role,COALESCE((SELECT level FROM admin_roles WHERE user_id=users.id),CASE WHEN role='admin' THEN 4 ELSE 0 END) AS level FROM users WHERE id=?").bind(userId).first();if(!target||staffLevel(target,env)<1)return fail("Сотрудник не найден",404);
   await env.DB.prepare("DELETE FROM admin_totp WHERE user_id=?").bind(userId).run();
   await env.DB.prepare("DELETE FROM totp_recovery WHERE user_id=?").bind(userId).run();
   await env.DB.prepare("DELETE FROM auth_challenges WHERE user_id=?").bind(userId).run();
