@@ -133,7 +133,7 @@ async function handle(request,env){
  if(method==="OPTIONS")return new Response(null,{status:204});
  const origin=request.headers.get("Origin");if(origin&&origin!==url.origin)return fail("Недопустимый источник запроса",403);
  if(path==="auth/me"&&method==="GET"){const user=await currentUser(request,env);return json({user:user?viewUser(user,env):null});}
- if(path==="auth/2fa/setup"&&method==="GET"){const token=getMfaCookie(request);if(!token)return fail("Сеанс настройки истёк",401);const hash=await sha256(token),ch=await env.DB.prepare("SELECT * FROM auth_challenges WHERE token_hash=? AND purpose='enroll' AND expires_at>datetime('now')").bind(hash).first();if(!ch)return fail("Сеанс настройки истёк",401);let secret;if(ch.pending_secret_enc)secret=await decryptSecret(ch.pending_secret_enc,env);else{secret=base32Encode(crypto.getRandomValues(new Uint8Array(20)));const encrypted=await encryptSecret(secret,env);await env.DB.prepare("UPDATE auth_challenges SET pending_secret_enc=? WHERE token_hash=?").bind(encrypted,hash).run();}const user=await env.DB.prepare("SELECT email FROM users WHERE id=?").bind(ch.user_id).first();const uri="otpauth://totp/FRAGZONE:"+encodeURIComponent(user.email)+"?secret="+secret+"&issuer=FRAGZONE&algorithm=SHA1&digits=6&period=30";return json({secret,uri,account:user.email});}
+ if(path==="auth/2fa/setup"&&method==="GET"){const token=getMfaCookie(request);if(!token)return fail("Сеанс настройки истёк",401);const hash=await sha256(token),ch=await env.DB.prepare("SELECT * FROM auth_challenges WHERE token_hash=? AND purpose='enroll' AND expires_at>datetime('now')").bind(hash).first();if(!ch)return fail("Сеанс настройки истёк",401);let secret;if(ch.pending_secret_enc)secret=await decryptSecret(ch.pending_secret_enc,env);else{secret=base32Encode(crypto.getRandomValues(new Uint8Array(20)));const encrypted=await encryptSecret(secret,env);await env.DB.prepare("UPDATE auth_challenges SET pending_secret_enc=? WHERE token_hash=?").bind(encrypted,hash).run();}const user=await env.DB.prepare("SELECT email FROM users WHERE id=?").bind(ch.user_id).first();if(!user?.email)return fail("Не удалось найти учетную запись владельца. Обратитесь в поддержку.",409);const uri="otpauth://totp/FRAGZONE:"+encodeURIComponent(user.email)+"?secret="+secret+"&issuer=FRAGZONE&algorithm=SHA1&digits=6&period=30";return json({secret,uri,account:user.email});}
  if(path==="auth/2fa/verify"&&method==="POST"){return finishMfaLogin(request,env,await readBody(request));}
  if(path==="auth/2fa/re-enroll"&&method==="POST"){
   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);if(!await requireOwnerFresh(request,env))return fail("STEP_UP_REQUIRED",428);
@@ -414,15 +414,18 @@ async function handle(request,env){
  return fail("Маршрут не найден",404);
 }
 export async function onRequest({request,env}){
+ let stage="schema";
  try{
   if(env.DB) await ensureSchema(env.DB);
+  stage="handler";
   return await handle(request,env);
  }
  catch(error){
   const errorId=crypto.randomUUID();
   const message=String(error?.message||"Unknown error");
   // Log only diagnostic metadata; never log request bodies, passwords, cookies, or secrets.
-  console.error("FRAGZONE_API_ERROR", {errorId,name:error?.name||"Error",message});
+  console.error("FRAGZONE_API_ERROR", {errorId,stage,name:error?.name||"Error",message});
+  if(/TOTP_ENCRYPTION_KEY/.test(message))return json({error:message,errorId},503);
   if(/no such table/i.test(message))return json({error:"Таблицы поддержки не созданы. Выполните schema.sql в подключённой базе D1.",errorId},503);
   return json({error:"Внутренняя ошибка сервера. Передайте поддержке код ошибки.",errorId},500);
  }
