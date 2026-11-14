@@ -133,10 +133,19 @@ async function handle(request,env){
  if(path==="auth/me"&&method==="GET"){const user=await currentUser(request,env);return json({user:user?viewUser(user,env):null});}
  if(path==="auth/2fa/setup"&&method==="GET"){const token=getMfaCookie(request);if(!token)return fail("Сеанс настройки истёк",401);const hash=await sha256(token),ch=await env.DB.prepare("SELECT * FROM auth_challenges WHERE token_hash=? AND purpose='enroll' AND expires_at>datetime('now')").bind(hash).first();if(!ch)return fail("Сеанс настройки истёк",401);let secret;if(ch.pending_secret_enc)secret=await decryptSecret(ch.pending_secret_enc,env);else{secret=base32Encode(crypto.getRandomValues(new Uint8Array(20)));const encrypted=await encryptSecret(secret,env);await env.DB.prepare("UPDATE auth_challenges SET pending_secret_enc=? WHERE token_hash=?").bind(encrypted,hash).run();}const user=await env.DB.prepare("SELECT email FROM users WHERE id=?").bind(ch.user_id).first();const uri="otpauth://totp/FRAGZONE:"+encodeURIComponent(user.email)+"?secret="+secret+"&issuer=FRAGZONE&algorithm=SHA1&digits=6&period=30";return json({secret,uri,account:user.email});}
  if(path==="auth/2fa/verify"&&method==="POST"){return finishMfaLogin(request,env,await readBody(request));}
+ if(path==="auth/2fa/re-enroll"&&method==="POST"){
+  const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);if(!await requireOwnerFresh(request,env))return fail("STEP_UP_REQUIRED",428);
+  await env.DB.prepare("DELETE FROM admin_totp WHERE user_id=?").bind(actor.id).run();
+  await env.DB.prepare("DELETE FROM totp_recovery WHERE user_id=?").bind(actor.id).run();
+  await env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(actor.id).run();
+  const challenge=await createMfaChallenge(actor,"enroll",env);return json({twoFactorRequired:true,enrollmentRequired:true},200,{"set-cookie":setMfaCookie(challenge)});
+ }
  if(path==="auth/2fa/step-up"&&method==="POST"){
   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);
   const body=await readBody(request),code=clean(body.code,10),row=await env.DB.prepare("SELECT secret_enc FROM admin_totp WHERE user_id=?").bind(actor.id).first();
-  if(!row||!await verifyTotp(await decryptSecret(row.secret_enc,env),code))return fail("Неверный код Google Authenticator",401);
+  let valid=!!row&&await verifyTotp(await decryptSecret(row.secret_enc,env),code);
+  if(!valid&&/^[A-Z0-9-]{8,16}$/i.test(code)){const h=await sha256(code.toUpperCase()),used=await env.DB.prepare("DELETE FROM totp_recovery WHERE user_id=? AND code_hash=?").bind(actor.id,h).run();valid=!!used.meta?.changes;}
+  if(!valid)return fail("Неверный код Google Authenticator или резервный код",401);
   const token=getCookie(request);await env.DB.prepare("UPDATE sessions SET mfa_recent_until=datetime('now','+5 minutes') WHERE token_hash=?").bind(await sha256(token)).run();return json({ok:true});
  }
 
