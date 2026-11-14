@@ -15,7 +15,7 @@ export async function onRequest({request,env,next}){
   const token=cookie(request);
   if(token){
    const hash=await sha256(token);
-   const owner=await env.DB.prepare("SELECT u.id FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>datetime('now') AND lower(u.email)=lower(?)").bind(hash,String(env.ADMIN_EMAIL||"")).first();
+   const owner=await env.DB.prepare("SELECT u.id FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>datetime('now') AND lower(u.email)=lower(?)").bind(hash,String(env.ADMIN_EMAIL||"").trim()).first();
    if(owner)return next();
   }
   return maintenancePage(values.maintenance_message);
