@@ -1,16 +1,23 @@
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+async function timedFetch(url,options={}){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
+ try{return await fetch(url,{...options,signal:controller.signal});}
+ catch(error){if(error?.name==="AbortError")throw new Error("Сервер не ответил за 20 секунд. Попробуй ещё раз; если повторится, сообщи поддержке.");throw error;}
+ finally{clearTimeout(timer);}
+}
+function responseError(data,fallback){return new Error((data.error||fallback)+(data.errorId?" (код ошибки: "+data.errorId+")":""));}
 async function api(path,options={}){
- const send=()=>fetch("/api"+path,{credentials:"same-origin",headers:{"content-type":"application/json"},...options});
+ const send=()=>timedFetch("/api"+path,{credentials:"same-origin",headers:{"content-type":"application/json"},...options});
  let r=await send(),d=await r.json().catch(()=>({}));
  if(r.status===428&&d.error==="STEP_UP_REQUIRED"){
   const code=window.prompt("Для опасного действия подтверди личность: введи текущий код Google Authenticator.");
   if(!code)throw new Error("Действие отменено");
-  const sr=await fetch("/api/auth/2fa/step-up",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify({code})}),sd=await sr.json().catch(()=>({}));
-  if(!sr.ok)throw new Error(sd.error||"Не удалось подтвердить 2FA");
+  const sr=await timedFetch("/api/auth/2fa/step-up",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify({code})}),sd=await sr.json().catch(()=>({}));
+  if(!sr.ok)throw responseError(sd,"Не удалось подтвердить 2FA");
   r=await send();d=await r.json().catch(()=>({}));
  }
- if(!r.ok)throw new Error(d.error||"Ошибка запроса");return d;
+ if(!r.ok)throw responseError(d,"Ошибка запроса");return d;
 }
 function say(s,bad=false){const e=$("#message");e.textContent=s;e.className="owner-alert"+(bad?" error":"");e.hidden=false;}
 async function ownerMfa(enrollmentRequired,onDone,hostSelector){
@@ -53,7 +60,7 @@ function renderPunishments(){
 function renderAudit(logs){$("#auditList").innerHTML='<table class="owner-table"><thead><tr><th>Дата</th><th>Сотрудник</th><th>Действие</th><th>Объект</th><th>Детали</th></tr></thead><tbody>'+logs.map(l=>'<tr><td>'+esc(l.created_at)+'</td><td>'+esc(l.actor_username||"Удалённый аккаунт")+'</td><td>'+esc(l.action)+'</td><td>'+esc(l.target_id||"—")+'</td><td>'+esc(l.details)+'</td></tr>').join("")+'</tbody></table>';}
 function renderSettings(rows){const v=Object.fromEntries(rows.map(x=>[x.key,x.value]));$("#maintenance").value=v.maintenance_mode||"false";$("#registration").value=v.registration_enabled||"true";$("#announcement").value=v.announcement||"";$("#announcementEnabled").value=v.announcement_enabled||"false";}
 async function saveSetting(key,value){await api("/admin/settings",{method:"PATCH",body:JSON.stringify({key,value})});say("Настройка сохранена");}
-$("#loginForm").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.currentTarget);try{const result=await api("/admin/login",{method:"POST",body:JSON.stringify({email:f.get("email"),password:f.get("password")})});if(result.twoFactorRequired)await ownerMfa(result.enrollmentRequired,load);else await load();}catch(err){say(err.message,true);}};
+$("#loginForm").onsubmit=async e=>{e.preventDefault();const form=e.currentTarget,button=form.querySelector('button[type="submit"]'),f=new FormData(form);if(button.disabled)return;button.disabled=true;button.textContent="Выполняем вход…";say("Проверяем данные входа…");try{const result=await api("/admin/login",{method:"POST",body:JSON.stringify({email:f.get("email"),password:f.get("password")})});if(result.twoFactorRequired)await ownerMfa(result.enrollmentRequired,load);else await load();}catch(err){say(err.message,true);}finally{if(!form.hidden){button.disabled=false;button.textContent="Войти";}}};
 $("#logout").onclick=async()=>{await api("/auth/logout",{method:"POST",body:"{}"});location.reload();};
 $("#resetOwnerMfa").onclick=async()=>{const b=$("#resetOwnerMfa");b.disabled=true;try{await api("/auth/2fa/re-enroll",{method:"POST",body:"{}"});await ownerMfa(true,load,"#ownerMfaArea");}catch(e){say(e.message,true);}finally{b.disabled=false;}};
 $("#refresh").onclick=()=>load().catch(e=>say(e.message,true));
