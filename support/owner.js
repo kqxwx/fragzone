@@ -13,8 +13,8 @@ async function api(path,options={}){
  if(!r.ok)throw new Error(d.error||"Ошибка запроса");return d;
 }
 function say(s,bad=false){const e=$("#message");e.textContent=s;e.className="owner-alert"+(bad?" error":"");e.hidden=false;}
-async function ownerMfa(enrollmentRequired,onDone){
- const form=$("#loginForm");form.hidden=true;const wrap=document.createElement("section");wrap.className="owner-card owner-login";form.parentElement.appendChild(wrap);let setup=null;
+async function ownerMfa(enrollmentRequired,onDone,hostSelector){
+ const form=$("#loginForm"),host=hostSelector?$(hostSelector):form.parentElement;if(!hostSelector)form.hidden=true;const wrap=document.createElement("section");wrap.className="owner-card owner-login";host.appendChild(wrap);let setup=null;
  try{if(enrollmentRequired)setup=await api("/auth/2fa/setup");}catch(e){say(e.message,true);wrap.remove();form.hidden=false;return;}
  const intro=enrollmentRequired?'<h2>Подключение Google Authenticator</h2><p>В приложении нажми «+» → «Ввести ключ настройки», выбери Time-based и введи ключ:</p><pre style="white-space:pre-wrap;user-select:all">'+esc(setup.secret)+'</pre><p>Не передавай этот секрет никому.</p>':'<h2>Подтверждение владельца</h2><p>Введи текущий 6-значный код Google Authenticator.</p>';
  wrap.innerHTML=intro+'<form id="ownerMfaForm"><input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="123456" required><button class="fz-btn" type="submit">Подтвердить</button></form><p id="ownerMfaError" class="owner-muted"></p>';
@@ -55,6 +55,7 @@ function renderSettings(rows){const v=Object.fromEntries(rows.map(x=>[x.key,x.va
 async function saveSetting(key,value){await api("/admin/settings",{method:"PATCH",body:JSON.stringify({key,value})});say("Настройка сохранена");}
 $("#loginForm").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.currentTarget);try{const result=await api("/admin/login",{method:"POST",body:JSON.stringify({email:f.get("email"),password:f.get("password")})});if(result.twoFactorRequired)await ownerMfa(result.enrollmentRequired,load);else await load();}catch(err){say(err.message,true);}};
 $("#logout").onclick=async()=>{await api("/auth/logout",{method:"POST",body:"{}"});location.reload();};
+$("#resetOwnerMfa").onclick=async()=>{const b=$("#resetOwnerMfa");b.disabled=true;try{await api("/auth/2fa/re-enroll",{method:"POST",body:"{}"});await ownerMfa(true,load,"#ownerMfaArea");}catch(e){say(e.message,true);}finally{b.disabled=false;}};
 $("#refresh").onclick=()=>load().catch(e=>say(e.message,true));
 $("#staffSearch").oninput=renderStaff;
 $("#punishForm").onsubmit=async e=>{e.preventDefault();const type=$("#punishType").value,expires=$("#punishExpiry").value;try{await api("/admin/punishments",{method:"POST",body:JSON.stringify({userId:$("#punishUser").value,type,reason:$("#punishReason").value,expiresAt:expires?new Date(expires).toISOString():null})});say("Наказание выдано");e.currentTarget.reset();await load();}catch(err){say(err.message,true);}};
