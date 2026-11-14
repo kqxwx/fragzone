@@ -8,16 +8,6 @@ async function api(path,options={}) {
 }
 function notice(message,bad=false){const el=$("#notice");if(el){el.textContent=message;el.className="notice"+(bad?" error":"");el.hidden=false;}}
 function hideNotice(){if($("#notice"))$("#notice").hidden=true;}
-async function mfaPrompt(host,enrollmentRequired,onDone){
- const form=host.querySelector("form");if(form)form.hidden=true;
- const wrap=document.createElement("section");wrap.className="fz-panel";wrap.style.marginTop="16px";host.appendChild(wrap);
- let setup=null;
- try{if(enrollmentRequired)setup=await api("/auth/2fa/setup");}catch(e){wrap.textContent=e.message;return;}
- const intro=enrollmentRequired?'<h2>Подключение Google Authenticator</h2><p>В приложении нажми «+» → «Ввести ключ настройки». Выбери временной код (Time-based) и введи этот ключ:</p><p><code style="font-size:16px;word-break:break-all">'+esc(setup.secret)+'</code></p><p>Секрет показывается только на этапе подключения. Не отправляй его никому.</p>':'<h2>Подтверждение входа</h2><p>Открой Google Authenticator и введи текущий 6-значный код FRAGZONE.</p>';
- wrap.innerHTML=intro+'<form id="mfaVerifyForm" class="fz-login-form"><div class="fz-field"><label>Код подтверждения</label><input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></div><button class="fz-btn" type="submit">Подтвердить</button></form><p class="fz-muted" id="mfaError" aria-live="polite"></p>';
- wrap.querySelector("form").onsubmit=async e=>{e.preventDefault();const b=e.currentTarget.querySelector("button");b.disabled=true;try{const result=await api("/auth/2fa/verify",{method:"POST",body:JSON.stringify({code:new FormData(e.currentTarget).get("code")})});if(result.backupCodes?.length){wrap.innerHTML='<h2>Сохрани резервные коды</h2><p>Каждый код одноразовый. Сохрани их в безопасном месте. Повторно они не будут показаны.</p><pre style="white-space:pre-wrap;user-select:all">'+result.backupCodes.join("\n")+'</pre><button class="fz-btn" id="mfaSaved" type="button">Я сохранил коды — продолжить</button>';wrap.querySelector("#mfaSaved").onclick=onDone;}else await onDone();}catch(err){wrap.querySelector("#mfaError").textContent=err.message;b.disabled=false;}};
-}
-
 async function home(){
  let me={user:null};
  try { me=await api("/auth/me"); }
@@ -53,7 +43,7 @@ function auth(){
  const mode=$("#authMode"),form=$("#authForm");
  function setMode(v){mode.value=v;$("#authTitle").textContent=v==="register"?"Создать аккаунт":"Вход";$("#usernameField").hidden=v!=="register";$("#authUsername").required=v==="register";$("#authSubmit").textContent=v==="register"?"Зарегистрироваться":"Войти";$("#authSwitch").textContent=v==="register"?"Уже есть аккаунт? Войти":"Нет аккаунта? Создайте его";}
  setMode("login");$("#authSwitch").onclick=()=>setMode(mode.value==="login"?"register":"login");
- form.onsubmit=async e=>{e.preventDefault();hideNotice();const f=new FormData(form);try{const result=await api("/auth/"+mode.value,{method:"POST",body:JSON.stringify({email:f.get("email"),password:f.get("password"),username:f.get("username")})});if(result.twoFactorRequired)await mfaPrompt(form.parentElement,result.enrollmentRequired,()=>location.href="/support/");else location.href="/support/";}catch(err){notice(err.message,true);}};
+ form.onsubmit=async e=>{e.preventDefault();hideNotice();const f=new FormData(form);try{await api("/auth/"+mode.value,{method:"POST",body:JSON.stringify({email:f.get("email"),password:f.get("password"),username:f.get("username")})});location.href="/support/";}catch(err){notice(err.message,true);}};
 }
 async function ticket(){
  const p=new URLSearchParams(location.search),id=p.get("id"),key=p.get("key");if(!id)return notice("Не указан номер обращения",true);
@@ -152,7 +142,7 @@ async function admin(){
   if(me.user.isOwner)await loadUsers();
   await loadStaffTools();
  }
- $("#adminLoginForm").onsubmit=async e=>{e.preventDefault();const button=e.currentTarget.querySelector("button");button.disabled=true;const f=new FormData(e.currentTarget);try{const result=await api("/auth/login",{method:"POST",body:JSON.stringify({email:f.get("email"),password:f.get("password")})});if(result.twoFactorRequired)await mfaPrompt(login,result.enrollmentRequired,load);else await load();}catch(err){notice(err.message,true);}finally{button.disabled=false;}};
+ $("#adminLoginForm").onsubmit=async e=>{e.preventDefault();const button=e.currentTarget.querySelector("button");button.disabled=true;const f=new FormData(e.currentTarget);try{await api("/auth/login",{method:"POST",body:JSON.stringify({email:f.get("email"),password:f.get("password")})});await load();}catch(err){notice(err.message,true);}finally{button.disabled=false;}};
  $("#adminRoleForm").onsubmit=async e=>{
   e.preventDefault();const form=e.currentTarget,button=form.querySelector('button[type="submit"]'),data=new FormData(form);
   button.disabled=true;hideNotice();
