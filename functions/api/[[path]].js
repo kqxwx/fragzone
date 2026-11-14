@@ -1,6 +1,7 @@
 import { pbkdf2 } from "node:crypto";
 
 const COOKIE = "fz_session";
+const MFA_COOKIE = "fz_mfa_challenge";
 const SESSION_DAYS = 14;
 const PBKDF2_ITERATIONS = 100000;
 const MAX_BODY = 20000;
@@ -13,6 +14,9 @@ async function ensureSchema(db) {
    "CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY,email TEXT NOT NULL UNIQUE COLLATE NOCASE,username TEXT NOT NULL,password_hash TEXT NOT NULL,role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('user','admin')),created_at TEXT NOT NULL DEFAULT (datetime('now')))",
    "CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,expires_at TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT (datetime('now')))",
    "CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at)",
+   "CREATE TABLE IF NOT EXISTS admin_totp (user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,secret_enc TEXT NOT NULL,enabled_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+   "CREATE TABLE IF NOT EXISTS auth_challenges (token_hash TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,purpose TEXT NOT NULL,pending_secret_enc TEXT,attempts INTEGER NOT NULL DEFAULT 0,expires_at TEXT NOT NULL)",
+   "CREATE TABLE IF NOT EXISTS totp_recovery (user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,code_hash TEXT NOT NULL,PRIMARY KEY(user_id,code_hash))",
    "CREATE TABLE IF NOT EXISTS tickets (id TEXT PRIMARY KEY,user_id TEXT REFERENCES users(id) ON DELETE SET NULL,guest_name TEXT,guest_email TEXT,access_hash TEXT,subject TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','in_progress','answered','closed')),priority TEXT NOT NULL DEFAULT 'normal' CHECK(priority IN ('low','normal','high','urgent')),created_at TEXT NOT NULL DEFAULT (datetime('now')),updated_at TEXT NOT NULL DEFAULT (datetime('now')))",
    "CREATE INDEX IF NOT EXISTS idx_tickets_user ON tickets(user_id)",
    "CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status,updated_at)",
@@ -29,6 +33,10 @@ async function ensureSchema(db) {
    "CREATE INDEX IF NOT EXISTS idx_ticket_notes ON ticket_internal_notes(ticket_id,created_at)"
   ];
   for(const sql of statements) await db.prepare(sql).run();
+  try { await db.prepare("ALTER TABLE sessions ADD COLUMN mfa_verified INTEGER NOT NULL DEFAULT 0").run(); } catch(error) { if(!/duplicate column name/i.test(String(error?.message||error))) throw error; }
+  try { await db.prepare("ALTER TABLE sessions ADD COLUMN mfa_recent_until TEXT").run(); } catch(error) { if(!/duplicate column name/i.test(String(error?.message||error))) throw error; }
+  try { await db.prepare("ALTER TABLE sessions ADD COLUMN mfa_stepup_attempts INTEGER NOT NULL DEFAULT 0").run(); } catch(error) { if(!/duplicate column name/i.test(String(error?.message||error))) throw error; }
+  try { await db.prepare("ALTER TABLE sessions ADD COLUMN mfa_stepup_locked_until TEXT").run(); } catch(error) { if(!/duplicate column name/i.test(String(error?.message||error))) throw error; }
  })();
  try { await schemaReadyPromise; }
  catch(error) { schemaReadyPromise=null; throw error; }
@@ -69,12 +77,15 @@ function validEmail(value){return value.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$
 async function readBody(request){if(Number(request.headers.get("content-length")||0)>MAX_BODY)throw new Error("Слишком большой запрос");return request.json();}
 async function currentUser(request,env){
  const token=getCookie(request);if(!token)return null;
- return env.DB.prepare(`SELECT u.id,u.email,u.username,u.role,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN admin_roles ar ON ar.user_id=u.id WHERE s.token_hash=? AND s.expires_at > datetime('now') AND NOT EXISTS (SELECT 1 FROM punishments p WHERE p.user_id=u.id AND p.type='ban' AND p.active=1 AND (p.expires_at IS NULL OR p.expires_at > datetime('now')))`).bind(await sha256(token)).first();
+ return env.DB.prepare("SELECT u.id,u.email,u.username,u.role,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN admin_roles ar ON ar.user_id=u.id WHERE s.token_hash=? AND s.expires_at>datetime('now') AND ((s.mfa_verified=1 AND EXISTS (SELECT 1 FROM admin_totp t WHERE t.user_id=u.id)) OR (COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END)<1 AND lower(u.email)<>lower(?))) AND NOT EXISTS (SELECT 1 FROM punishments p WHERE p.user_id=u.id AND p.type='ban' AND p.active=1 AND (p.expires_at IS NULL OR p.expires_at>datetime('now')))").bind(await sha256(token),clean(env.ADMIN_EMAIL,254)).first();
 }
 async function isMuted(userId,env){if(!userId)return false;const row=await env.DB.prepare("SELECT id FROM punishments WHERE user_id=? AND type='mute' AND active=1 AND (expires_at IS NULL OR expires_at > datetime('now')) LIMIT 1").bind(userId).first();return !!row;}
 async function createSession(userId,env){
- const token=randomHex(32),expires=new Date(Date.now()+SESSION_DAYS*86400000).toISOString().slice(0,19).replace("T"," ");
- await env.DB.prepare("INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)").bind(await sha256(token),userId,expires).run();return token;
+ const identity=await env.DB.prepare("SELECT u.email,u.role,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM users u LEFT JOIN admin_roles ar ON ar.user_id=u.id WHERE u.id=?").bind(userId).first();
+ const owner=!!identity&&clean(env.ADMIN_EMAIL,254).toLowerCase()===String(identity.email||"").toLowerCase(),staff=owner||Number(identity?.level||0)>=1;
+ const age=owner?8*3600000:staff?12*3600000:SESSION_DAYS*86400000;
+ const token=randomHex(32),expires=new Date(Date.now()+age).toISOString().slice(0,19).replace("T"," ");
+ await env.DB.prepare("INSERT INTO sessions(token_hash,user_id,expires_at,mfa_verified,mfa_recent_until) VALUES(?,?,?,1,datetime('now','+5 minutes'))").bind(await sha256(token),userId,expires).run();return token;
 }
 function isOwner(user,env){return !!user&&clean(env.ADMIN_EMAIL,254).toLowerCase()===String(user.email||'').toLowerCase();}
 function isAdmin(user,env){return !!user&&staffLevel(user,env)>=1;}
@@ -83,12 +94,64 @@ function staffRole(level){return ({0:"user",1:"helper",2:"moderator",3:"senior_m
 function can(user,env,minimum){return staffLevel(user,env)>=minimum;}
 function viewUser(user,env){const owner=isOwner(user,env),level=staffLevel(user,env);return{id:user.id,email:user.email,username:user.username,role:owner?'owner':(level?staffRole(level):'user'),level,isOwner:owner};}
 
+
+function setMfaCookie(token){return "fz_mfa_challenge="+token+"; Path=/api/auth/2fa; HttpOnly; Secure; SameSite=Strict; Max-Age=600";}
+function getMfaCookie(request){const part=(request.headers.get("Cookie")||"").split(";").map(x=>x.trim()).find(x=>x.startsWith("fz_mfa_challenge="));return part?part.slice(17):null;}
+async function mfaKey(env){const raw=String(env.TOTP_ENCRYPTION_KEY||"").trim();if(!/^[0-9a-f]{64}$/i.test(raw))throw new Error("Для 2FA задайте Cloudflare secret TOTP_ENCRYPTION_KEY (64 hex-символа)");return crypto.subtle.importKey("raw",Uint8Array.from(raw.match(/.{2}/g),x=>parseInt(x,16)),{name:"AES-GCM"},false,["encrypt","decrypt"]);}
+async function encryptSecret(secret,env){const iv=crypto.getRandomValues(new Uint8Array(12)),key=await mfaKey(env),data=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(secret));return [...iv,...new Uint8Array(data)].map(x=>x.toString(16).padStart(2,"0")).join("");}
+async function decryptSecret(value,env){const bytes=Uint8Array.from(String(value).match(/.{2}/g)||[],x=>parseInt(x,16));if(bytes.length<29)throw new Error("Повреждён секрет 2FA");const key=await mfaKey(env),plain=await crypto.subtle.decrypt({name:"AES-GCM",iv:bytes.slice(0,12)},key,bytes.slice(12));return new TextDecoder().decode(plain);}
+function base32Encode(bytes){const alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";let bits=0,value=0,out="";for(const byte of bytes){value=(value<<8)|byte;bits+=8;while(bits>=5){out+=alphabet[(value>>>(bits-5))&31];bits-=5;}}if(bits)out+=alphabet[(value<<(5-bits))&31];return out;}
+function base32Decode(input){const alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";let bits=0,value=0,out=[];for(const ch of input.toUpperCase().replace(/=|\s/g,"")){const n=alphabet.indexOf(ch);if(n<0)throw new Error("Некорректный секрет TOTP");value=(value<<5)|n;bits+=5;if(bits>=8){out.push((value>>>(bits-8))&255);bits-=8;}}return new Uint8Array(out);}
+async function totpCode(secret,time=Date.now()){const key=await crypto.subtle.importKey("raw",base32Decode(secret),{name:"HMAC",hash:"SHA-1"},false,["sign"]),counter=Math.floor(time/30000),msg=new Uint8Array(8);let n=counter;for(let i=7;i>=0;i--){msg[i]=n&255;n=Math.floor(n/256);}const mac=new Uint8Array(await crypto.subtle.sign("HMAC",key,msg)),offset=mac[mac.length-1]&15,binary=((mac[offset]&127)<<24)|(mac[offset+1]<<16)|(mac[offset+2]<<8)|mac[offset+3];return String(binary%1000000).padStart(6,"0");}
+async function verifyTotp(secret,code){if(!/^\d{6}$/.test(code))return false;for(const drift of [-1,0,1])if(await totpCode(secret,Date.now()+drift*30000)===code)return true;return false;}
+async function createMfaChallenge(user,purpose,env){await env.DB.prepare("DELETE FROM auth_challenges WHERE user_id=?").bind(user.id).run();const token=randomHex(32),expires=new Date(Date.now()+600000).toISOString().slice(0,19).replace("T"," ");await env.DB.prepare("INSERT INTO auth_challenges(token_hash,user_id,purpose,expires_at) VALUES(?,?,?,?)").bind(await sha256(token),user.id,purpose,expires).run();return token;}
+async function requireOwnerFresh(request,env){
+ const token=getCookie(request);if(!token)return false;
+ const row=await env.DB.prepare("SELECT s.mfa_recent_until,u.email FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>datetime('now')").bind(await sha256(token)).first();
+ return !!row&&clean(env.ADMIN_EMAIL,254).toLowerCase()===String(row.email||"").toLowerCase()&&!!row.mfa_recent_until&&new Date(row.mfa_recent_until.replace(" ","T")+"Z").getTime()>Date.now();
+}
+async function finishMfaLogin(request,env,body){
+ const token=getMfaCookie(request);if(!token)return fail("Сеанс подтверждения истёк. Войдите снова.",401);
+ const hash=await sha256(token),ch=await env.DB.prepare("SELECT * FROM auth_challenges WHERE token_hash=? AND expires_at>datetime('now')").bind(hash).first();
+ if(!ch)return fail("Сеанс подтверждения истёк. Войдите снова.",401);
+ if(ch.attempts>=5){await env.DB.prepare("DELETE FROM auth_challenges WHERE token_hash=?").bind(hash).run();return fail("Слишком много попыток. Войдите снова.",429);}
+ const code=clean(body.code,20).replace(/\s/g,"");let valid=false,encrypted=ch.pending_secret_enc;
+ if(ch.purpose==="verify"){const row=await env.DB.prepare("SELECT secret_enc FROM admin_totp WHERE user_id=?").bind(ch.user_id).first();encrypted=row?.secret_enc;}
+ if(encrypted){const secret=await decryptSecret(encrypted,env);valid=await verifyTotp(secret,code);}
+ if(!valid&&ch.purpose==="verify"&&/^[A-Z0-9-]{8,16}$/i.test(code)){const backupHash=await sha256(code.toUpperCase()),r=await env.DB.prepare("DELETE FROM totp_recovery WHERE user_id=? AND code_hash=?").bind(ch.user_id,backupHash).run();valid=!!r.meta?.changes;}
+ if(!valid){await env.DB.prepare("UPDATE auth_challenges SET attempts=attempts+1 WHERE token_hash=?").bind(hash).run();return fail("Неверный код. Проверьте Google Authenticator и попробуйте ещё раз.",401);}
+ if(ch.purpose==="enroll"){await env.DB.prepare("INSERT INTO admin_totp(user_id,secret_enc,enabled_at) VALUES(?,?,datetime('now')) ON CONFLICT(user_id) DO UPDATE SET secret_enc=excluded.secret_enc,enabled_at=datetime('now')").bind(ch.user_id,encrypted).run();}
+ const backupCodes=[];if(ch.purpose==="enroll"){await env.DB.prepare("DELETE FROM totp_recovery WHERE user_id=?").bind(ch.user_id).run();for(let i=0;i<10;i++){const raw=randomHex(5).toUpperCase(),pretty=raw.slice(0,5)+"-"+raw.slice(5);backupCodes.push(pretty);await env.DB.prepare("INSERT INTO totp_recovery(user_id,code_hash) VALUES(?,?)").bind(ch.user_id,await sha256(pretty)).run();}}
+ await env.DB.prepare("DELETE FROM auth_challenges WHERE token_hash=?").bind(hash).run();
+ const session=await createSession(ch.user_id,env),user=await env.DB.prepare("SELECT u.id,u.email,u.username,u.role,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM users u LEFT JOIN admin_roles ar ON ar.user_id=u.id WHERE u.id=?").bind(ch.user_id).first();
+ return json({ok:true,user:viewUser(user,env),backupCodes},200,{"set-cookie":setCookie(session)});
+}
+
 async function handle(request,env){
  if(!env.DB)return fail("База D1 не подключена. В Cloudflare Pages → Settings → Bindings добавьте D1 database binding с именем DB.",503);
  const url=new URL(request.url),path=url.pathname.replace(/^\/api\/?/,"").replace(/\/+$/,""),method=request.method.toUpperCase();
  if(method==="OPTIONS")return new Response(null,{status:204});
  const origin=request.headers.get("Origin");if(origin&&origin!==url.origin)return fail("Недопустимый источник запроса",403);
  if(path==="auth/me"&&method==="GET"){const user=await currentUser(request,env);return json({user:user?viewUser(user,env):null});}
+ if(path==="auth/2fa/setup"&&method==="GET"){const token=getMfaCookie(request);if(!token)return fail("Сеанс настройки истёк",401);const hash=await sha256(token),ch=await env.DB.prepare("SELECT * FROM auth_challenges WHERE token_hash=? AND purpose='enroll' AND expires_at>datetime('now')").bind(hash).first();if(!ch)return fail("Сеанс настройки истёк",401);let secret;if(ch.pending_secret_enc)secret=await decryptSecret(ch.pending_secret_enc,env);else{secret=base32Encode(crypto.getRandomValues(new Uint8Array(20)));const encrypted=await encryptSecret(secret,env);await env.DB.prepare("UPDATE auth_challenges SET pending_secret_enc=? WHERE token_hash=?").bind(encrypted,hash).run();}const user=await env.DB.prepare("SELECT email FROM users WHERE id=?").bind(ch.user_id).first();const uri="otpauth://totp/FRAGZONE:"+encodeURIComponent(user.email)+"?secret="+secret+"&issuer=FRAGZONE&algorithm=SHA1&digits=6&period=30";return json({secret,uri,account:user.email});}
+ if(path==="auth/2fa/verify"&&method==="POST"){return finishMfaLogin(request,env,await readBody(request));}
+ if(path==="auth/2fa/re-enroll"&&method==="POST"){
+  const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);if(!await requireOwnerFresh(request,env))return fail("STEP_UP_REQUIRED",428);
+  await env.DB.prepare("DELETE FROM admin_totp WHERE user_id=?").bind(actor.id).run();
+  await env.DB.prepare("DELETE FROM totp_recovery WHERE user_id=?").bind(actor.id).run();
+  await env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(actor.id).run();
+  const challenge=await createMfaChallenge(actor,"enroll",env);return json({twoFactorRequired:true,enrollmentRequired:true},200,{"set-cookie":setMfaCookie(challenge)});
+ }
+ if(path==="auth/2fa/step-up"&&method==="POST"){
+  const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);
+  const token=getCookie(request),sessionHash=await sha256(token),session=await env.DB.prepare("SELECT mfa_stepup_attempts,CASE WHEN mfa_stepup_locked_until>datetime('now') THEN 1 ELSE 0 END AS locked FROM sessions WHERE token_hash=? AND expires_at>datetime('now')").bind(sessionHash).first();
+  if(session?.locked)return fail("Слишком много попыток. Подожди 15 минут.",429);
+  const body=await readBody(request),code=clean(body.code,20),row=await env.DB.prepare("SELECT secret_enc FROM admin_totp WHERE user_id=?").bind(actor.id).first();
+  let valid=!!row&&await verifyTotp(await decryptSecret(row.secret_enc,env),code);
+  if(!valid&&/^[A-Z0-9-]{8,16}$/i.test(code)){const h=await sha256(code.toUpperCase()),used=await env.DB.prepare("DELETE FROM totp_recovery WHERE user_id=? AND code_hash=?").bind(actor.id,h).run();valid=!!used.meta?.changes;}
+  if(!valid){const attempts=Number(session?.mfa_stepup_attempts||0)+1;await env.DB.prepare("UPDATE sessions SET mfa_stepup_attempts=?,mfa_stepup_locked_until=CASE WHEN ?>=5 THEN datetime('now','+15 minutes') ELSE mfa_stepup_locked_until END WHERE token_hash=?").bind(attempts,attempts,sessionHash).run();return fail("Неверный код Google Authenticator или резервный код",401);}
+  await env.DB.prepare("UPDATE sessions SET mfa_recent_until=datetime('now','+5 minutes'),mfa_stepup_attempts=0,mfa_stepup_locked_until=NULL WHERE token_hash=?").bind(sessionHash).run();return json({ok:true});
+ }
  if(path==="auth/register"&&method==="POST"){
   const registration=await env.DB.prepare("SELECT value FROM site_settings WHERE key='registration_enabled'").first();
   if(registration?.value==="false")return fail("Регистрация временно отключена владельцем сайта",403);
@@ -111,7 +174,7 @@ async function handle(request,env){
   const passwordCheck=await verifyPassword(password,user.password_hash);
   if(passwordCheck==="legacy")return fail("Для этого аккаунта требуется восстановление пароля: сохранённый хеш использует старый формат, несовместимый с бесплатным тарифом Cloudflare.",409);
   if(passwordCheck!==true)return fail("Неверный email или пароль",401);
-  const staff=await env.DB.prepare("SELECT level FROM admin_roles WHERE user_id=?").bind(user.id).first();user.level=staff?.level??(user.role==="admin"?4:0);const token=await createSession(user.id,env);return json({user:viewUser(user,env)},200,{"set-cookie":setCookie(token)});
+  const staff=await env.DB.prepare("SELECT level FROM admin_roles WHERE user_id=?").bind(user.id).first();user.level=staff?.level??(user.role==="admin"?4:0);if(staffLevel(user,env)>=1){const enrolled=await env.DB.prepare("SELECT user_id FROM admin_totp WHERE user_id=?").bind(user.id).first(),challenge=await createMfaChallenge(user,enrolled?"verify":"enroll",env);return json({twoFactorRequired:true,enrollmentRequired:!enrolled},200,{"set-cookie":setMfaCookie(challenge)});}const token=await createSession(user.id,env);return json({user:viewUser(user,env)},200,{"set-cookie":setCookie(token)});
  }
  if(path==="auth/logout"&&method==="POST"){const token=getCookie(request);if(token)await env.DB.prepare("DELETE FROM sessions WHERE token_hash=?").bind(await sha256(token)).run();return json({ok:true},200,{"set-cookie":setCookie("",0)});}
  if(path==="tickets"&&method==="POST"){
@@ -184,7 +247,7 @@ async function handle(request,env){
   let admin=await env.DB.prepare("SELECT * FROM users WHERE email=?").bind(email).first();
   if(!admin){const id=crypto.randomUUID();await env.DB.prepare("INSERT INTO users(id,email,username,password_hash,role) VALUES(?,?, 'Администратор',?,'admin')").bind(id,email,configuredAdminHash).run();admin={id,email,username:"Администратор",role:"admin"};}
   else{await env.DB.prepare("UPDATE users SET role='admin' WHERE id=?").bind(admin.id).run();admin.role="admin";}
-  const token=await createSession(admin.id,env);return json({user:viewUser(admin,env)},200,{"set-cookie":setCookie(token)});
+  admin.level=6;const enrolled=await env.DB.prepare("SELECT user_id FROM admin_totp WHERE user_id=?").bind(admin.id).first(),challenge=await createMfaChallenge(admin,enrolled?"verify":"enroll",env);return json({twoFactorRequired:true,enrollmentRequired:!enrolled},200,{"set-cookie":setMfaCookie(challenge)});
  }
  if(path==="admin/users"&&method==="GET"){
   const user=await currentUser(request,env);if(!isOwner(user,env))return fail("Только владелец может управлять администраторами",403);
@@ -192,7 +255,7 @@ async function handle(request,env){
   const ownerEmail=clean(env.ADMIN_EMAIL,254).toLowerCase();
   return json({users:result.results.map(item=>({...item,role:String(item.email).toLowerCase()===ownerEmail?"owner":item.role}))});
  }
- if(path==="admin/users"&&method==="POST"){
+ if(path==="admin/users"&&method==="POST"){if(!await requireOwnerFresh(request,env))return fail("STEP_UP_REQUIRED",428);
   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец может управлять администраторами",403);
   const body=await readBody(request),email=clean(body.email,254).toLowerCase(),role=body.role;
   if(!validEmail(email))return fail("Укажите корректный email");
@@ -201,10 +264,11 @@ async function handle(request,env){
   const target=await env.DB.prepare("SELECT id,email,username FROM users WHERE email=?").bind(email).first();
   if(!target)return fail("Пользователь с таким email не найден. Сначала он должен зарегистрироваться.",404);
   await env.DB.prepare("UPDATE users SET role=? WHERE id=?").bind(role,target.id).run();await env.DB.prepare("INSERT INTO admin_roles(user_id,level,updated_by,updated_at) VALUES(?,?,?,datetime('now')) ON CONFLICT(user_id) DO UPDATE SET level=excluded.level,updated_by=excluded.updated_by,updated_at=datetime('now')").bind(target.id,role==="admin"?4:0,actor.id).run();
+  await env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(target.id).run();
   return json({ok:true,user:{id:target.id,email:target.email,username:target.username,role}});
  }
  const adminUser=path.match(new RegExp("^admin/users/([0-9a-f-]{36})$","i"));
- if(adminUser&&method==="PATCH"){
+ if(adminUser&&method==="PATCH"){if(!await requireOwnerFresh(request,env))return fail("STEP_UP_REQUIRED",428);
   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец может управлять администраторами",403);
   const body=await readBody(request),role=body.role;
   if(!["user","admin"].includes(role))return fail("Допустимые роли: user или admin");
@@ -212,6 +276,7 @@ async function handle(request,env){
   if(!target)return fail("Пользователь не найден",404);
   if(String(target.email).toLowerCase()===clean(env.ADMIN_EMAIL,254).toLowerCase())return fail("Нельзя изменить роль владельца",403);
   await env.DB.prepare("UPDATE users SET role=? WHERE id=?").bind(role,target.id).run();await env.DB.prepare("INSERT INTO admin_roles(user_id,level,updated_by,updated_at) VALUES(?,?,?,datetime('now')) ON CONFLICT(user_id) DO UPDATE SET level=excluded.level,updated_by=excluded.updated_by,updated_at=datetime('now')").bind(target.id,role==="admin"?4:0,actor.id).run();
+  await env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(target.id).run();
   return json({ok:true,user:{id:target.id,email:target.email,role}});
  }
  if(path==="admin/tickets"&&method==="GET"){
@@ -244,18 +309,19 @@ async function handle(request,env){
  }
  if(path==="admin/staff"&&method==="GET"){
   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец может управлять уровнями",403);
-  const rows=await env.DB.prepare("SELECT u.id,u.email,u.username,u.created_at,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM users u LEFT JOIN admin_roles ar ON ar.user_id=u.id ORDER BY level DESC,u.created_at DESC LIMIT 500").all();
+  const rows=await env.DB.prepare("SELECT u.id,u.email,u.username,u.created_at,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level,EXISTS(SELECT 1 FROM admin_totp t WHERE t.user_id=u.id) AS mfa_enabled FROM users u LEFT JOIN admin_roles ar ON ar.user_id=u.id ORDER BY level DESC,u.created_at DESC LIMIT 500").all();
   return json({staff:rows.results.map(x=>({...x,role:staffRole(String(x.email).toLowerCase()===clean(env.ADMIN_EMAIL,254).toLowerCase()?6:x.level)}))});
  }
  const staffMatch=path.match(/^admin\/staff\/([0-9a-f-]{36})$/i);
- if(staffMatch&&method==="PATCH"){
+ if(staffMatch&&method==="PATCH"){if(!await requireOwnerFresh(request,env))return fail("STEP_UP_REQUIRED",428);
   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец может выдавать уровни",403);
   const body=await readBody(request),level=Number(body.level);
   if(!Number.isInteger(level)||level<0||level>5)return fail("Уровень должен быть от 0 до 5");
   const target=await env.DB.prepare("SELECT id,email FROM users WHERE id=?").bind(staffMatch[1]).first();
   if(!target)return fail("Пользователь не найден",404);
   if(String(target.email).toLowerCase()===clean(env.ADMIN_EMAIL,254).toLowerCase())return fail("Нельзя изменить владельца",403);
-  await env.DB.prepare("INSERT INTO admin_roles(user_id,level,updated_by,updated_at) VALUES(?,?,?,datetime('now')) ON CONFLICT(user_id) DO UPDATE SET level=excluded.level,updated_by=excluded.updated_by,updated_at=datetime('now')").bind(target.id,level,actor.id).run();
+  await env.DB.prepare("INSERT INTO admin_roles(user_id,level,updated_by,updated_at) VALUES(?,?,?,datetime('now')) ON CONFLICT(user_id) DO UPDATE SET level=excluded.level,updated_by=excluded.updated_by,updated_at=datetime('now')") .bind(target.id,level,actor.id).run();
+  await env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(target.id).run();
   await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"staff.level",target.id,JSON.stringify({level})).run();
   return json({ok:true,level,role:staffRole(level)});
  }
@@ -270,7 +336,7 @@ async function handle(request,env){
   return json({punishments:rows.results});
  }
  if(path==="admin/punishments"&&method==="POST"){
-  const actor=await currentUser(request,env);if(!isAdmin(actor,env))return fail("Требуется доступ администрации",403);
+  const actor=await currentUser(request,env);if(!isAdmin(actor,env))return fail("Требуется доступ администрации",403);if(isOwner(actor,env)&&!await requireOwnerFresh(request,env))return fail("STEP_UP_REQUIRED",428);
   const body=await readBody(request),type=clean(body.type,12),userId=clean(body.userId,64),reason=clean(body.reason,500);
   if(!["warn","ban","mute"].includes(type)||!userId||reason.length<3)return fail("Укажите тип наказания, пользователя и причину");
   const required=type==="warn"?5:type==="ban"?4:2;
@@ -287,7 +353,7 @@ async function handle(request,env){
  }
  const punishmentMatch=path.match(/^admin\/punishments\/([0-9a-f-]{36})$/i);
  if(punishmentMatch&&method==="PATCH"){
-  const actor=await currentUser(request,env);if(!can(actor,env,5))return fail("Нужен уровень 5 или владелец",403);
+  const actor=await currentUser(request,env);if(!can(actor,env,5))return fail("Нужен уровень 5 или владелец",403);if(isOwner(actor,env)&&!await requireOwnerFresh(request,env))return fail("STEP_UP_REQUIRED",428);
   const body=await readBody(request),active=body.active===true?1:body.active===false?0:null;
   if(active===null)return fail("Укажите active: true или false");
   await env.DB.prepare("UPDATE punishments SET active=? WHERE id=?").bind(active,punishmentMatch[1]).run();
@@ -308,7 +374,7 @@ async function handle(request,env){
   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);
   const rows=await env.DB.prepare("SELECT key,value,updated_at FROM site_settings ORDER BY key").all();return json({settings:rows.results});
  }
- if(path==="admin/settings"&&method==="PATCH"){
+ if(path==="admin/settings"&&method==="PATCH"){if(!await requireOwnerFresh(request,env))return fail("STEP_UP_REQUIRED",428);
   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);
   const body=await readBody(request),key=clean(body.key,64),value=clean(body.value,2000);
   if(!["maintenance_mode","registration_enabled","announcement","announcement_enabled"].includes(key))return fail("Недопустимая настройка");
@@ -327,7 +393,19 @@ async function handle(request,env){
   if(!ticketId||note.length<2)return fail("Заметка слишком короткая");
   await env.DB.prepare("INSERT INTO ticket_internal_notes(id,ticket_id,author_id,note,created_at) VALUES(?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),ticketId,actor.id,note).run();return json({ok:true},201);
  }
- if(path==="admin/logout-all"&&method==="POST"){
+
+ if(path==="admin/2fa/reset"&&method==="POST"){if(!await requireOwnerFresh(request,env))return fail("STEP_UP_REQUIRED",428);
+  const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);
+  const body=await readBody(request),userId=clean(body.userId,64);if(!userId||userId===actor.id)return fail("Нельзя сбросить 2FA владельца этим способом");
+  const target=await env.DB.prepare("SELECT id,email,role,COALESCE((SELECT level FROM admin_roles WHERE user_id=users.id),CASE WHEN role='admin' THEN 4 ELSE 0 END) AS level FROM users WHERE id=?").bind(userId).first();if(!target||staffLevel(target,env)<1)return fail("Сотрудник не найден",404);
+  await env.DB.prepare("DELETE FROM admin_totp WHERE user_id=?").bind(userId).run();
+  await env.DB.prepare("DELETE FROM totp_recovery WHERE user_id=?").bind(userId).run();
+  await env.DB.prepare("DELETE FROM auth_challenges WHERE user_id=?").bind(userId).run();
+  await env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(userId).run();
+  await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"security.totp.reset",userId,"{}").run();
+  return json({ok:true});
+ }
+ if(path==="admin/logout-all"&&method==="POST"){if(!await requireOwnerFresh(request,env))return fail("STEP_UP_REQUIRED",428);
   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);
   const body=await readBody(request),userId=clean(body.userId,64);if(!userId)return fail("Укажите пользователя");
   await env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(userId).run();
