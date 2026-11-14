@@ -546,6 +546,8 @@ footer a {
 
 /* Не даём display:grid/flex переопределять стандартный атрибут hidden. */
 [hidden]{display:none!important}
+.account-panel.is-authenticated .account-form{display:none!important}
+.account-panel.is-authenticated .account-user{display:flex!important}
 .account-panel{display:grid;grid-template-columns:1fr minmax(280px,420px);gap:22px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:20px 22px;margin-bottom:22px}
 .account-copy h2{font-size:17px;margin:0 0 7px}.account-copy p{font-size:12px;line-height:1.6;color:var(--muted);margin:0}
 .account-form{display:grid;grid-template-columns:1fr 1fr;gap:8px}.account-form input{min-width:0;width:100%;background:#0b1118;color:white;border:1px solid var(--line);border-radius:8px;padding:11px;outline:none}.account-form input:focus{border-color:var(--green)}
@@ -1344,10 +1346,20 @@ setInterval(() => {
     finally { submit.disabled=false; }
   });
   async function loadAccount(){
+    const panel=document.getElementById("accountPanel");
     try {
       const result=await api("/auth/me");
       const topLink=document.getElementById("accountTopLink");
-      if(!result.user){if(topLink)topLink.hidden=true;return;}
+      const adminLink=document.getElementById("adminTopLink");
+      if(!result.user){
+        panel.classList.remove("is-authenticated");
+        form.hidden=false;
+        userArea.hidden=true;
+        if(topLink)topLink.hidden=true;
+        if(adminLink)adminLink.hidden=true;
+        return;
+      }
+      panel.classList.add("is-authenticated");
       form.hidden=true;
       document.getElementById("accountHeading").textContent="Ты в FRAGZONE";
       document.getElementById("accountDescription").textContent="Аккаунт активен. Теперь ты можешь создавать обращения в поддержку.";
@@ -1355,10 +1367,29 @@ setInterval(() => {
       const label=document.createElement("span"); label.textContent="Вошли как "+result.user.username;
       const cabinet=document.createElement("a"); cabinet.href="/account/"; cabinet.className="site-url"; cabinet.textContent="Личный кабинет";
       if(topLink){topLink.textContent="Кабинет · "+result.user.username;topLink.hidden=false;}
-      const adminLink=document.getElementById("adminTopLink"); if(adminLink) adminLink.hidden=!["admin","owner"].includes(result.user.role);
+      if(adminLink)adminLink.hidden=!["admin","owner"].includes(result.user.role);
+      const addAccount=document.createElement("button");
+      addAccount.type="button";
+      addAccount.textContent="Создать ещё аккаунт";
+      addAccount.addEventListener("click",async()=>{
+        addAccount.disabled=true;
+        try{
+          await api("/auth/logout",{method:"POST",body:"{}"});
+          panel.classList.remove("is-authenticated");
+          userArea.hidden=true;
+          form.hidden=false;
+          form.reset();
+          if(topLink)topLink.hidden=true;
+          if(adminLink)adminLink.hidden=true;
+          setMode("register");
+          document.getElementById("accountHeading").textContent="Создать ещё аккаунт";
+          say("Предыдущий аккаунт сохранён. Зарегистрируй новый на другой email.");
+          form.scrollIntoView({behavior:"smooth",block:"center"});
+        }catch(error){addAccount.disabled=false;say(error.message,true);}
+      });
       const logout=document.createElement("button"); logout.type="button"; logout.textContent="Выйти";
       logout.addEventListener("click",async()=>{logout.disabled=true;try{await api("/auth/logout",{method:"POST",body:"{}"});location.reload();}catch(error){logout.disabled=false;alert(error.message);}});
-      userArea.replaceChildren(label,cabinet,logout);
+      userArea.replaceChildren(label,cabinet,addAccount,logout);
     } catch(error) { say(error.message,true); }
   }
   setMode("login"); loadAccount();
