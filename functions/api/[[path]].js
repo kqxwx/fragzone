@@ -120,6 +120,8 @@ async function handle(request,env){
  }
  if(path==="auth/logout"&&method==="POST"){const token=getCookie(request);if(token)await env.DB.prepare("DELETE FROM sessions WHERE token_hash=?").bind(await sha256(token)).run();return json({ok:true},200,{"set-cookie":setCookie("",0)});}
  if(path==="tickets"&&method==="POST"){
+  const supportSetting=await env.DB.prepare("SELECT value FROM site_settings WHERE key='support_enabled'").first();
+  if(supportSetting?.value==="false")return fail("Приём новых обращений временно отключён владельцем сайта",403);
   const body=await readBody(request),user=await currentUser(request,env),subject=clean(body.subject,120),message=clean(body.message,5000);
   if(user&&await isMuted(user.id,env))return fail("Ваш аккаунт временно ограничен от отправки обращений",403);
   const guestName=clean(body.name,60),guestEmail=clean(body.email,254).toLowerCase();
@@ -239,15 +241,16 @@ async function handle(request,env){
 
  if(path==="admin/dashboard"&&method==="GET"){
   const actor=await currentUser(request,env);if(!isAdmin(actor,env))return fail("Требуется доступ администрации",403);
-  const [users,tickets,open,warns,bans,staff]=await Promise.all([
+  const [users,tickets,open,warns,bans,staff,sessions]=await Promise.all([
    env.DB.prepare("SELECT COUNT(*) AS n FROM users").first(),
    env.DB.prepare("SELECT COUNT(*) AS n FROM tickets").first(),
    env.DB.prepare("SELECT COUNT(*) AS n FROM tickets WHERE status IN ('open','in_progress')").first(),
    env.DB.prepare("SELECT COUNT(*) AS n FROM punishments WHERE type='warn' AND active=1").first(),
    env.DB.prepare("SELECT COUNT(*) AS n FROM punishments WHERE type='ban' AND active=1").first(),
-   env.DB.prepare("SELECT COUNT(*) AS n FROM admin_roles WHERE level>0").first()
+   env.DB.prepare("SELECT COUNT(*) AS n FROM admin_roles WHERE level>0").first(),
+   env.DB.prepare("SELECT COUNT(*) AS n FROM sessions WHERE expires_at>datetime('now')").first()
   ]);
-  return json({stats:{users:users?.n||0,tickets:tickets?.n||0,openTickets:open?.n||0,warns:warns?.n||0,bans:bans?.n||0,staff:staff?.n||0},me:viewUser(actor,env)});
+  return json({stats:{users:users?.n||0,tickets:tickets?.n||0,openTickets:open?.n||0,warns:warns?.n||0,bans:bans?.n||0,staff:staff?.n||0,activeSessions:sessions?.n||0},me:viewUser(actor,env)});
  }
  if(path==="admin/staff"&&method==="GET"){
   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец может управлять уровнями",403);
@@ -304,7 +307,7 @@ async function handle(request,env){
  }
  if(path==="admin/audit"&&method==="GET"){
   const actor=await currentUser(request,env);if(!can(actor,env,3))return fail("Нужен уровень 3 или выше",403);
-  const rows=await env.DB.prepare("SELECT l.*,u.username AS actor_username FROM audit_logs l LEFT JOIN users u ON u.id=l.actor_id ORDER BY l.created_at DESC LIMIT 500").all();
+  const rows=await env.DB.prepare("SELECT l.*,u.username AS actor_username FROM audit_logs l LEFT JOIN users u ON u.id=l.actor_id ORDER BY l.created_at DESC LIMIT 100").all();
   return json({logs:rows.results});
  }
  if(path==="site/announcement"&&method==="GET"){
@@ -319,7 +322,7 @@ async function handle(request,env){
  if(path==="admin/settings"&&method==="PATCH"){
   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);
   const body=await readBody(request),key=clean(body.key,64),value=clean(body.value,2000);
-  if(!["maintenance_mode","registration_enabled","announcement","announcement_enabled"].includes(key))return fail("Недопустимая настройка");
+  if(!["maintenance_mode","maintenance_message","registration_enabled","support_enabled","announcement","announcement_enabled"].includes(key))return fail("Недопустимая настройка");
   await env.DB.prepare("INSERT INTO site_settings(key,value,updated_by,updated_at) VALUES(?,?,?,datetime('now')) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_by=excluded.updated_by,updated_at=datetime('now')").bind(key,value,actor.id).run();
   await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"settings.update",key,JSON.stringify({value})).run();
   return json({ok:true});
@@ -337,6 +340,12 @@ async function handle(request,env){
  }
 
 
+ if(path==="admin/sessions/revoke-all"&&method==="POST"){
+  const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);
+  const result=await env.DB.prepare("DELETE FROM sessions WHERE user_id<>?").bind(actor.id).run();
+  await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"sessions.revoke_all","all",JSON.stringify({revoked:result.meta?.changes||0})).run();
+  return json({ok:true,revoked:result.meta?.changes||0});
+ }
  if(path==="admin/logout-all"&&method==="POST"){
   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);
   const body=await readBody(request),userId=clean(body.userId,64);if(!userId)return fail("Укажите пользователя");

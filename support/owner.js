@@ -11,7 +11,7 @@ async function load(){
  const [dash,staffData,ps,logs,settings,userData,ticketData]=await Promise.all([
   api("/admin/dashboard"),api("/admin/staff"),api("/admin/punishments"),api("/admin/audit"),api("/admin/settings"),api("/admin/users"),api("/admin/tickets")
  ]);
- const s=dash.stats;$("#statUsers").textContent=s.users;$("#statTickets").textContent=s.tickets;$("#statOpen").textContent=s.openTickets;$("#statStaff").textContent=s.staff;$("#statWarns").textContent=s.warns;$("#statBans").textContent=s.bans;
+ const s=dash.stats;$("#statUsers").textContent=s.users;$("#statTickets").textContent=s.tickets;$("#statOpen").textContent=s.openTickets;$("#statStaff").textContent=s.staff;$("#statWarns").textContent=s.warns;$("#statBans").textContent=s.bans;$("#statSessions").textContent=s.activeSessions??"—";
  staff=staffData.staff||[];users=userData.users||[];tickets=ticketData.tickets||[];punishments=ps.punishments||[];
  renderStaff();renderUsers();renderTickets();renderPunishments();renderAudit(logs.logs||[]);renderSettings(settings.settings||[]);
 }
@@ -33,7 +33,7 @@ function renderPunishments(){
  $("#punishmentList").innerHTML='<table class="owner-table"><thead><tr><th>Пользователь</th><th>Тип</th><th>Причина</th><th>Выдал</th><th>Статус</th><th></th></tr></thead><tbody>'+punishments.map(p=>'<tr><td>'+esc(p.target_username||p.target_email||p.user_id)+'</td><td>'+esc(p.type.toUpperCase())+'</td><td>'+esc(p.reason)+'</td><td>'+esc(p.actor_username||"—")+'</td><td>'+(p.active?"Активно":"Снято")+'</td><td>'+(p.active?'<button class="fz-btn fz-btn-ghost" data-revoke-punishment="'+esc(p.id)+'">Снять</button>':"—")+'</td></tr>').join("")+'</tbody></table>';
 }
 function renderAudit(logs){$("#auditList").innerHTML='<table class="owner-table"><thead><tr><th>Дата</th><th>Сотрудник</th><th>Действие</th><th>Объект</th><th>Детали</th></tr></thead><tbody>'+logs.map(l=>'<tr><td>'+esc(l.created_at)+'</td><td>'+esc(l.actor_username||"Удалённый аккаунт")+'</td><td>'+esc(l.action)+'</td><td>'+esc(l.target_id||"—")+'</td><td>'+esc(l.details)+'</td></tr>').join("")+'</tbody></table>';}
-function renderSettings(rows){const v=Object.fromEntries(rows.map(x=>[x.key,x.value]));$("#maintenance").value=v.maintenance_mode||"false";$("#registration").value=v.registration_enabled||"true";$("#announcement").value=v.announcement||"";$("#announcementEnabled").value=v.announcement_enabled||"false";}
+function renderSettings(rows){const v=Object.fromEntries(rows.map(x=>[x.key,x.value]));$("#maintenance").value=v.maintenance_mode||"false";$("#registration").value=v.registration_enabled||"true";$("#supportEnabled").value=v.support_enabled||"true";$("#maintenanceMessage").value=v.maintenance_message||"Сайт временно недоступен. Попробуйте зайти позже.";$("#announcement").value=v.announcement||"";$("#announcementEnabled").value=v.announcement_enabled||"false";}
 async function saveSetting(key,value){await api("/admin/settings",{method:"PATCH",body:JSON.stringify({key,value})});say("Настройка сохранена");}
 $("#loginForm").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.currentTarget),b=e.currentTarget.querySelector('button[type="submit"]');b.disabled=true;b.textContent="Входим…";try{await api("/admin/login",{method:"POST",body:JSON.stringify({email:f.get("email"),password:f.get("password")})});await load();}catch(err){say(err.message,true);}finally{b.disabled=false;b.textContent="Войти";}};
 $("#logout").onclick=async()=>{await api("/auth/logout",{method:"POST",body:"{}"});location.reload();};
@@ -50,5 +50,8 @@ $("#punishmentList").onclick=async e=>{const b=e.target.closest("[data-revoke-pu
 $("#punishForm").onsubmit=async e=>{e.preventDefault();const expires=$("#punishExpiry").value;try{await api("/admin/punishments",{method:"POST",body:JSON.stringify({userId:$("#punishUser").value,type:$("#punishType").value,reason:$("#punishReason").value,expiresAt:expires?new Date(expires).toISOString():null})});say("Наказание выдано");e.currentTarget.reset();await load();}catch(err){say(err.message,true);}};
 $("#saveMaintenance").onclick=()=>saveSetting("maintenance_mode",$("#maintenance").value).catch(e=>say(e.message,true));
 $("#saveRegistration").onclick=()=>saveSetting("registration_enabled",$("#registration").value).catch(e=>say(e.message,true));
+$("#saveSupport").onclick=()=>saveSetting("support_enabled",$("#supportEnabled").value).catch(e=>say(e.message,true));
+$("#saveMaintenanceMessage").onclick=()=>saveSetting("maintenance_message",$("#maintenanceMessage").value).catch(e=>say(e.message,true));
+$("#revokeAllSessions").onclick=async()=>{if(!confirm("Завершить сессии всех пользователей и сотрудников? Ваша сессия владельца останется активной."))return;try{const result=await api("/admin/sessions/revoke-all",{method:"POST",body:"{}"});say("Завершено сессий: "+result.revoked);}catch(e){say(e.message,true);}};
 $("#saveAnnouncement").onclick=async()=>{try{await saveSetting("announcement",$("#announcement").value);await saveSetting("announcement_enabled",$("#announcementEnabled").value);}catch(e){say(e.message,true);}};
 load().catch(e=>say(e.message,true));
