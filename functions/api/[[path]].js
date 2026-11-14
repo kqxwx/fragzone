@@ -307,7 +307,7 @@ async function handle(request,env){
  }
  if(path==="admin/audit"&&method==="GET"){
   const actor=await currentUser(request,env);if(!can(actor,env,3))return fail("Нужен уровень 3 или выше",403);
-  const rows=await env.DB.prepare("SELECT l.*,u.username AS actor_username FROM audit_logs l LEFT JOIN users u ON u.id=l.actor_id ORDER BY l.created_at DESC LIMIT 500").all();
+  const rows=await env.DB.prepare("SELECT l.*,u.username AS actor_username FROM audit_logs l LEFT JOIN users u ON u.id=l.actor_id ORDER BY l.created_at DESC LIMIT 100").all();
   return json({logs:rows.results});
  }
  if(path==="site/announcement"&&method==="GET"){
