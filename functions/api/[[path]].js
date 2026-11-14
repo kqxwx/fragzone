@@ -1,6 +1,7 @@
 import { pbkdf2 } from "node:crypto";
 
 const COOKIE = "fz_session";
+const MFA_COOKIE = "fz_mfa_challenge";
 const SESSION_DAYS = 14;
 const PBKDF2_ITERATIONS = 100000;
 const MAX_BODY = 20000;
@@ -13,6 +14,9 @@ async function ensureSchema(db) {
    "CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY,email TEXT NOT NULL UNIQUE COLLATE NOCASE,username TEXT NOT NULL,password_hash TEXT NOT NULL,role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('user','admin')),created_at TEXT NOT NULL DEFAULT (datetime('now')))",
    "CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,expires_at TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT (datetime('now')))",
    "CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at)",
+   "CREATE TABLE IF NOT EXISTS admin_totp (user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,secret_enc TEXT NOT NULL,enabled_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+   "CREATE TABLE IF NOT EXISTS auth_challenges (token_hash TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,purpose TEXT NOT NULL,pending_secret_enc TEXT,attempts INTEGER NOT NULL DEFAULT 0,expires_at TEXT NOT NULL)",
+   "CREATE TABLE IF NOT EXISTS totp_recovery (user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,code_hash TEXT NOT NULL,PRIMARY KEY(user_id,code_hash))",
    "CREATE TABLE IF NOT EXISTS tickets (id TEXT PRIMARY KEY,user_id TEXT REFERENCES users(id) ON DELETE SET NULL,guest_name TEXT,guest_email TEXT,access_hash TEXT,subject TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','in_progress','answered','closed')),priority TEXT NOT NULL DEFAULT 'normal' CHECK(priority IN ('low','normal','high','urgent')),created_at TEXT NOT NULL DEFAULT (datetime('now')),updated_at TEXT NOT NULL DEFAULT (datetime('now')))",
    "CREATE INDEX IF NOT EXISTS idx_tickets_user ON tickets(user_id)",
    "CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status,updated_at)",
@@ -29,6 +33,7 @@ async function ensureSchema(db) {
    "CREATE INDEX IF NOT EXISTS idx_ticket_notes ON ticket_internal_notes(ticket_id,created_at)"
   ];
   for(const sql of statements) await db.prepare(sql).run();
+  try { await db.prepare("ALTER TABLE sessions ADD COLUMN mfa_verified INTEGER NOT NULL DEFAULT 0").run(); } catch(error) { if(!/duplicate column name/i.test(String(error?.message||error))) throw error; }
  })();
  try { await schemaReadyPromise; }
  catch(error) { schemaReadyPromise=null; throw error; }
@@ -69,12 +74,12 @@ function validEmail(value){return value.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$
 async function readBody(request){if(Number(request.headers.get("content-length")||0)>MAX_BODY)throw new Error("Слишком большой запрос");return request.json();}
 async function currentUser(request,env){
  const token=getCookie(request);if(!token)return null;
- return env.DB.prepare(`SELECT u.id,u.email,u.username,u.role,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN admin_roles ar ON ar.user_id=u.id WHERE s.token_hash=? AND s.expires_at > datetime('now') AND NOT EXISTS (SELECT 1 FROM punishments p WHERE p.user_id=u.id AND p.type='ban' AND p.active=1 AND (p.expires_at IS NULL OR p.expires_at > datetime('now')))`).bind(await sha256(token)).first();
+ return env.DB.prepare("SELECT u.id,u.email,u.username,u.role,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN admin_roles ar ON ar.user_id=u.id WHERE s.token_hash=? AND s.expires_at>datetime('now') AND (s.mfa_verified=1 OR (COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END)<1 AND lower(u.email)<>lower(?))) AND NOT EXISTS (SELECT 1 FROM punishments p WHERE p.user_id=u.id AND p.type='ban' AND p.active=1 AND (p.expires_at IS NULL OR p.expires_at>datetime('now')))").bind(await sha256(token),clean(env.ADMIN_EMAIL,254)).first();
 }
 async function isMuted(userId,env){if(!userId)return false;const row=await env.DB.prepare("SELECT id FROM punishments WHERE user_id=? AND type='mute' AND active=1 AND (expires_at IS NULL OR expires_at > datetime('now')) LIMIT 1").bind(userId).first();return !!row;}
 async function createSession(userId,env){
  const token=randomHex(32),expires=new Date(Date.now()+SESSION_DAYS*86400000).toISOString().slice(0,19).replace("T"," ");
- await env.DB.prepare("INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)").bind(await sha256(token),userId,expires).run();return token;
+ await env.DB.prepare("INSERT INTO sessions(token_hash,user_id,expires_at,mfa_verified) VALUES(?,?,?,1)").bind(await sha256(token),userId,expires).run();return token;
 }
 function isOwner(user,env){return !!user&&clean(env.ADMIN_EMAIL,254).toLowerCase()===String(user.email||'').toLowerCase();}
 function isAdmin(user,env){return !!user&&staffLevel(user,env)>=1;}
