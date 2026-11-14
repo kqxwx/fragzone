@@ -88,6 +88,34 @@ function staffRole(level){return ({0:"user",1:"helper",2:"moderator",3:"senior_m
 function can(user,env,minimum){return staffLevel(user,env)>=minimum;}
 function viewUser(user,env){const owner=isOwner(user,env),level=staffLevel(user,env);return{id:user.id,email:user.email,username:user.username,role:owner?'owner':(level?staffRole(level):'user'),level,isOwner:owner};}
 
+
+function setMfaCookie(token){return "fz_mfa_challenge="+token+"; Path=/api/auth/2fa; HttpOnly; Secure; SameSite=Strict; Max-Age=600";}
+function getMfaCookie(request){const part=(request.headers.get("Cookie")||"").split(";").map(x=>x.trim()).find(x=>x.startsWith("fz_mfa_challenge="));return part?part.slice(18):null;}
+async function mfaKey(env){const raw=String(env.TOTP_ENCRYPTION_KEY||"").trim();if(!/^[0-9a-f]{64}$/i.test(raw))throw new Error("Для 2FA задайте Cloudflare secret TOTP_ENCRYPTION_KEY (64 hex-символа)");return crypto.subtle.importKey("raw",Uint8Array.from(raw.match(/.{2}/g),x=>parseInt(x,16)),{name:"AES-GCM"},false,["encrypt","decrypt"]);}
+async function encryptSecret(secret,env){const iv=crypto.getRandomValues(new Uint8Array(12)),key=await mfaKey(env),data=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(secret));return [...iv,...new Uint8Array(data)].map(x=>x.toString(16).padStart(2,"0")).join("");}
+async function decryptSecret(value,env){const bytes=Uint8Array.from(String(value).match(/.{2}/g)||[],x=>parseInt(x,16));if(bytes.length<29)throw new Error("Повреждён секрет 2FA");const key=await mfaKey(env),plain=await crypto.subtle.decrypt({name:"AES-GCM",iv:bytes.slice(0,12)},key,bytes.slice(12));return new TextDecoder().decode(plain);}
+function base32Encode(bytes){const alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";let bits=0,value=0,out="";for(const byte of bytes){value=(value<<8)|byte;bits+=8;while(bits>=5){out+=alphabet[(value>>>(bits-5))&31];bits-=5;}}if(bits)out+=alphabet[(value<<(5-bits))&31];return out;}
+function base32Decode(input){const alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";let bits=0,value=0,out=[];for(const ch of input.toUpperCase().replace(/=|\s/g,"")){const n=alphabet.indexOf(ch);if(n<0)throw new Error("Некорректный секрет TOTP");value=(value<<5)|n;bits+=5;if(bits>=8){out.push((value>>>(bits-8))&255);bits-=8;}}return new Uint8Array(out);}
+async function totpCode(secret,time=Date.now()){const key=await crypto.subtle.importKey("raw",base32Decode(secret),{name:"HMAC",hash:"SHA-1"},false,["sign"]),counter=Math.floor(time/30000),msg=new Uint8Array(8);let n=counter;for(let i=7;i>=0;i--){msg[i]=n&255;n=Math.floor(n/256);}const mac=new Uint8Array(await crypto.subtle.sign("HMAC",key,msg)),offset=mac[mac.length-1]&15,binary=((mac[offset]&127)<<24)|(mac[offset+1]<<16)|(mac[offset+2]<<8)|mac[offset+3];return String(binary%1000000).padStart(6,"0");}
+async function verifyTotp(secret,code){if(!/^\d{6}$/.test(code))return false;for(const drift of [-1,0,1])if(await totpCode(secret,Date.now()+drift*30000)===code)return true;return false;}
+async function createMfaChallenge(user,purpose,env){const token=randomHex(32),expires=new Date(Date.now()+600000).toISOString().slice(0,19).replace("T"," ");await env.DB.prepare("INSERT INTO auth_challenges(token_hash,user_id,purpose,expires_at) VALUES(?,?,?,?)").bind(await sha256(token),user.id,purpose,expires).run();return token;}
+async function finishMfaLogin(request,env,body){
+ const token=getMfaCookie(request);if(!token)return fail("Сеанс подтверждения истёк. Войдите снова.",401);
+ const hash=await sha256(token),ch=await env.DB.prepare("SELECT * FROM auth_challenges WHERE token_hash=? AND expires_at>datetime('now')").bind(hash).first();
+ if(!ch)return fail("Сеанс подтверждения истёк. Войдите снова.",401);
+ if(ch.attempts>=5){await env.DB.prepare("DELETE FROM auth_challenges WHERE token_hash=?").bind(hash).run();return fail("Слишком много попыток. Войдите снова.",429);}
+ const code=clean(body.code,20).replace(/\s/g,"");let valid=false,encrypted=ch.pending_secret_enc;
+ if(ch.purpose==="verify"){const row=await env.DB.prepare("SELECT secret_enc FROM admin_totp WHERE user_id=?").bind(ch.user_id).first();encrypted=row?.secret_enc;}
+ if(encrypted){const secret=await decryptSecret(encrypted,env);valid=await verifyTotp(secret,code);}
+ if(!valid&&ch.purpose==="verify"&&/^[A-Z0-9-]{8,16}$/i.test(code)){const backupHash=await sha256(code.toUpperCase()),r=await env.DB.prepare("DELETE FROM totp_recovery WHERE user_id=? AND code_hash=?").bind(ch.user_id,backupHash).run();valid=!!r.meta?.changes;}
+ if(!valid){await env.DB.prepare("UPDATE auth_challenges SET attempts=attempts+1 WHERE token_hash=?").bind(hash).run();return fail("Неверный код. Проверьте Google Authenticator и попробуйте ещё раз.",401);}
+ if(ch.purpose==="enroll"){await env.DB.prepare("INSERT INTO admin_totp(user_id,secret_enc,enabled_at) VALUES(?,?,datetime('now')) ON CONFLICT(user_id) DO UPDATE SET secret_enc=excluded.secret_enc,enabled_at=datetime('now')").bind(ch.user_id,encrypted).run();}
+ const backupCodes=[];if(ch.purpose==="enroll"){await env.DB.prepare("DELETE FROM totp_recovery WHERE user_id=?").bind(ch.user_id).run();for(let i=0;i<10;i++){const raw=randomHex(5).toUpperCase(),pretty=raw.slice(0,5)+"-"+raw.slice(5);backupCodes.push(pretty);await env.DB.prepare("INSERT INTO totp_recovery(user_id,code_hash) VALUES(?,?)").bind(ch.user_id,await sha256(pretty)).run();}}
+ await env.DB.prepare("DELETE FROM auth_challenges WHERE token_hash=?").bind(hash).run();
+ const session=await createSession(ch.user_id,env),user=await env.DB.prepare("SELECT u.id,u.email,u.username,u.role,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM users u LEFT JOIN admin_roles ar ON ar.user_id=u.id WHERE u.id=?").bind(ch.user_id).first();
+ return json({ok:true,user:viewUser(user,env),backupCodes},200,{"set-cookie":setCookie(session)});
+}
+
 async function handle(request,env){
  if(!env.DB)return fail("База D1 не подключена. В Cloudflare Pages → Settings → Bindings добавьте D1 database binding с именем DB.",503);
  const url=new URL(request.url),path=url.pathname.replace(/^\/api\/?/,"").replace(/\/+$/,""),method=request.method.toUpperCase();
