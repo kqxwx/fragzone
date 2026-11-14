@@ -171,7 +171,7 @@ async function handle(request,env){
   if(email===clean(env.ADMIN_EMAIL,254).toLowerCase())return fail("Нельзя изменить роль владельца",403);
   const target=await env.DB.prepare("SELECT id,email,username FROM users WHERE email=?").bind(email).first();
   if(!target)return fail("Пользователь с таким email не найден. Сначала он должен зарегистрироваться.",404);
-  await env.DB.prepare("UPDATE users SET role=? WHERE id=?").bind(role,target.id).run();
+  await env.DB.prepare("UPDATE users SET role=? WHERE id=?").bind(role,target.id).run();await env.DB.prepare("INSERT INTO admin_roles(user_id,level,updated_by,updated_at) VALUES(?,?,?,datetime('now')) ON CONFLICT(user_id) DO UPDATE SET level=excluded.level,updated_by=excluded.updated_by,updated_at=datetime('now')").bind(target.id,role==="admin"?4:0,actor.id).run();
   return json({ok:true,user:{id:target.id,email:target.email,username:target.username,role}});
  }
  const adminUser=path.match(new RegExp("^admin/users/([0-9a-f-]{36})$","i"));
@@ -182,7 +182,7 @@ async function handle(request,env){
   const target=await env.DB.prepare("SELECT id,email FROM users WHERE id=?").bind(adminUser[1]).first();
   if(!target)return fail("Пользователь не найден",404);
   if(String(target.email).toLowerCase()===clean(env.ADMIN_EMAIL,254).toLowerCase())return fail("Нельзя изменить роль владельца",403);
-  await env.DB.prepare("UPDATE users SET role=? WHERE id=?").bind(role,target.id).run();
+  await env.DB.prepare("UPDATE users SET role=? WHERE id=?").bind(role,target.id).run();await env.DB.prepare("INSERT INTO admin_roles(user_id,level,updated_by,updated_at) VALUES(?,?,?,datetime('now')) ON CONFLICT(user_id) DO UPDATE SET level=excluded.level,updated_by=excluded.updated_by,updated_at=datetime('now')").bind(target.id,role==="admin"?4:0,actor.id).run();
   return json({ok:true,user:{id:target.id,email:target.email,role}});
  }
  if(path==="admin/tickets"&&method==="GET"){
