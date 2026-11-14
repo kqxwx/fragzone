@@ -54,7 +54,7 @@ async function ticket(){
   $("#ticketTitle").textContent=d.ticket.subject;
   $("#ticketMeta").textContent="Статус: "+(statusNames[d.ticket.status]||d.ticket.status)+" · Создано: "+d.ticket.created_at;
   $("#comments").innerHTML=d.comments.map(c=>'<article class="fz-comment"><b>'+esc(c.author_name)+'</b><time>'+esc(c.created_at)+'</time><p>'+esc(c.body)+'</p></article>').join("")||"<p>Пока нет сообщений.</p>";
-  const me=await api("/auth/me"),isAdmin=!!(me.user&&["admin","owner"].includes(me.user.role)),isOwner=!!(me.user&&d.ticket.user_id===me.user.id),isGuest=!!key;
+  const me=await api("/auth/me"),isAdmin=!!(me.user&&(Number(me.user.level||0)>=1||me.user.isOwner)),isOwner=!!(me.user&&d.ticket.user_id===me.user.id),isGuest=!!key;
   const canManage=isAdmin||isOwner||isGuest;
   const ticketActions=$("#ticketActions"),closeButton=$("#closeTicket"),reopenButton=$("#reopenTicket");
   // Personal-ticket page intentionally has no status-action toolbar.
