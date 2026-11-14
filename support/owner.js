@@ -15,7 +15,7 @@ async function load(){
 function renderStaff(){
  const q=$("#staffSearch").value.toLowerCase();
  const filtered=users.filter(u=>(u.username+" "+u.email).toLowerCase().includes(q));
- $("#staffList").innerHTML=filtered.map(u=>'<div class="owner-row"><div><b>'+esc(u.username)+'</b><small>'+esc(u.email)+'</small><small>Текущий уровень: '+esc(levels[u.level]||u.level)+'</small></div><select data-level="'+esc(u.id)+'">'+[0,1,2,3,4,5].map(n=>'<option value="'+n+'" '+(Number(u.level)===n?"selected":"")+'>'+n+' — '+levels[n]+'</option>').join("")+'</select><button class="fz-btn" data-save-level="'+esc(u.id)+'" '+(u.role==="owner"?"disabled":"")+'>Сохранить уровень</button></div>').join("")||'<p class="owner-muted">Пользователи не найдены.</p>';
+ $("#staffList").innerHTML=filtered.map(u=>'<div class="owner-row"><div><b>'+esc(u.username)+'</b><small>'+esc(u.email)+'</small><small>Текущий уровень: '+esc(u.role==="owner"?"OWNER":(levels[u.level]||u.level))+'</small></div><select data-level="'+esc(u.id)+'">'+[0,1,2,3,4,5].map(n=>'<option value="'+n+'" '+(Number(u.level)===n?"selected":"")+'>'+n+' — '+levels[n]+'</option>').join("")+'</select><button class="fz-btn" data-save-level="'+esc(u.id)+'" '+(u.role==="owner"?"disabled":"")+'>Сохранить уровень</button></div>').join("")||'<p class="owner-muted">Пользователи не найдены.</p>';
  for(const b of document.querySelectorAll("[data-save-level]")){
   const revoke=document.createElement("button");revoke.type="button";revoke.className="fz-btn owner-danger";revoke.textContent="Завершить сессии";revoke.dataset.revokeSessions=b.dataset.saveLevel;revoke.disabled=b.disabled;b.insertAdjacentElement("afterend",revoke);
  }
