@@ -111,7 +111,7 @@ async function admin(){
   if(!me.user||Number(me.user.level||0)<1&&! ["admin","owner","helper","moderator","senior_moderator","administrator","head_admin"].includes(me.user.role)){login.hidden=false;panel.hidden=true;return;}
   login.hidden=true;panel.hidden=false;
   $("#adminWelcome").textContent=(me.user.isOwner?"Владелец FRAGZONE":"Уровень "+(me.user.level||4)+" · "+me.user.role)+" · "+me.user.username+" · "+me.user.email;
-  $("#teamPanel").hidden=!me.user.isOwner;
+  $("#teamPanel").hidden=!me.user.isOwner;if($("#ownerPanelLink"))$("#ownerPanelLink").hidden=!me.user.isOwner;
   await loadTickets();
   if(me.user.isOwner)await loadUsers();
  }
