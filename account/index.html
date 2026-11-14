@@ -28,7 +28,7 @@ header{display:flex;justify-content:space-between;align-items:center;gap:18px;pa
 <section class="card account-switcher">
  <div class="account-switcher-head"><div><div class="eyebrow">ACCOUNT HUB</div><h2 style="font-size:16px;margin:8px 0 0">Твои аккаунты</h2></div><small>На этом устройстве</small></div>
  <div class="account-list" id="savedAccounts"><div class="empty">Загружаем список аккаунтов…</div></div>
- <div class="account-actions"><a class="btn primary" href="/?register=1#accountPanel">＋ Создать аккаунт</a></div>
+ <div class="account-actions"><button class="btn primary" id="createAnotherAccount" type="button">＋ Создать аккаунт</button></div>
  <p style="font-size:10px;line-height:1.5;color:var(--muted);margin:10px 0 0">Для переключения потребуется пароль. Пароли на устройстве не сохраняются.</p>
 </section>
 <section class="card favorites-card"><div class="eyebrow">YOUR COLLECTION</div><h2 style="font-size:16px;margin:9px 0">Избранное</h2><p>Список избранных серверов пока хранится в этом браузере. Открой каталог, чтобы добавить серверы в коллекцию.</p><a class="btn primary" href="/#catalog" style="display:inline-flex;margin-top:4px">Открыть каталог →</a></section>
@@ -65,6 +65,7 @@ function renderSavedAccounts(user){
   list.append(item);
  });
 }
+$("createAnotherAccount").addEventListener("click",async()=>{const button=$("createAnotherAccount");button.disabled=true;button.textContent="Подготавливаем…";try{await api("/auth/logout",{method:"POST",body:"{}"});location.href="/?register=1#accountPanel"}catch(error){button.disabled=false;button.textContent="＋ Создать аккаунт";showError(error.message)}});
 async function init(){
  try{
   const me=await api("/auth/me");
