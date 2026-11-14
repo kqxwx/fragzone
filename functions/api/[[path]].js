@@ -40,8 +40,9 @@ function validEmail(value){return value.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$
 async function readBody(request){if(Number(request.headers.get("content-length")||0)>MAX_BODY)throw new Error("Слишком большой запрос");return request.json();}
 async function currentUser(request,env){
  const token=getCookie(request);if(!token)return null;
- return env.DB.prepare(`SELECT u.id,u.email,u.username,u.role,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN admin_roles ar ON ar.user_id=u.id WHERE s.token_hash=? AND s.expires_at > datetime('now')`).bind(await sha256(token)).first();
+ return env.DB.prepare(`SELECT u.id,u.email,u.username,u.role,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN admin_roles ar ON ar.user_id=u.id WHERE s.token_hash=? AND s.expires_at > datetime('now') AND NOT EXISTS (SELECT 1 FROM punishments p WHERE p.user_id=u.id AND p.type='ban' AND p.active=1 AND (p.expires_at IS NULL OR p.expires_at > datetime('now')))`).bind(await sha256(token)).first();
 }
+async function isMuted(userId,env){if(!userId)return false;const row=await env.DB.prepare("SELECT id FROM punishments WHERE user_id=? AND type='mute' AND active=1 AND (expires_at IS NULL OR expires_at > datetime('now')) LIMIT 1").bind(userId).first();return !!row;}
 async function createSession(userId,env){
  const token=randomHex(32),expires=new Date(Date.now()+SESSION_DAYS*86400000).toISOString().slice(0,19).replace("T"," ");
  await env.DB.prepare("INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)").bind(await sha256(token),userId,expires).run();return token;
@@ -74,6 +75,8 @@ async function handle(request,env){
   const body=await readBody(request),email=clean(body.email,254).toLowerCase(),password=typeof body.password==="string"?body.password:"";
   const user=await env.DB.prepare("SELECT * FROM users WHERE email=?").bind(email).first();
   if(!user)return fail("Неверный email или пароль",401);
+  const activeBan=await env.DB.prepare("SELECT reason,expires_at FROM punishments WHERE user_id=? AND type='ban' AND active=1 AND (expires_at IS NULL OR expires_at > datetime('now')) LIMIT 1").bind(user.id).first();
+  if(activeBan)return fail("Аккаунт заблокирован: "+activeBan.reason,403);
   const passwordCheck=await verifyPassword(password,user.password_hash);
   if(passwordCheck==="legacy")return fail("Для этого аккаунта требуется восстановление пароля: сохранённый хеш использует старый формат, несовместимый с бесплатным тарифом Cloudflare.",409);
   if(passwordCheck!==true)return fail("Неверный email или пароль",401);
@@ -82,6 +85,7 @@ async function handle(request,env){
  if(path==="auth/logout"&&method==="POST"){const token=getCookie(request);if(token)await env.DB.prepare("DELETE FROM sessions WHERE token_hash=?").bind(await sha256(token)).run();return json({ok:true},200,{"set-cookie":setCookie("",0)});}
  if(path==="tickets"&&method==="POST"){
   const body=await readBody(request),user=await currentUser(request,env),subject=clean(body.subject,120),message=clean(body.message,5000);
+  if(user&&await isMuted(user.id,env))return fail("Ваш аккаунт временно ограничен от отправки обращений",403);
   const guestName=clean(body.name,60),guestEmail=clean(body.email,254).toLowerCase();
   if(clean(body.website,200))return fail("Не удалось отправить обращение",400);
   if(subject.length<4||message.length<10)return fail("Тема — минимум 4 символа, описание — минимум 10");
@@ -130,6 +134,7 @@ async function handle(request,env){
   if(!ticket)return fail("Обращение не найдено",404);
   const key=clean(body.key,128),guestAllowed=!!(key&&ticket.access_hash&&await sha256(key)===ticket.access_hash);
   if(!isAdmin(user,env)&&!(user&&ticket.user_id===user.id)&&!guestAllowed)return fail("Нет доступа к обращению",403);
+  if(user&&!isAdmin(user,env)&&await isMuted(user.id,env))return fail("Ваш аккаунт временно ограничен от отправки сообщений",403);
   if(ticket.status==="closed"&&!isAdmin(user,env))return fail("Обращение закрыто. Если проблема повторилась, создайте новое.",409);
   const message=clean(body.body,5000);if(message.length<2)return fail("Комментарий слишком короткий");
   const author=user?user.username:(ticket.guest_name||"Автор обращения");
@@ -190,7 +195,8 @@ async function handle(request,env){
   const user=await currentUser(request,env);if(!isAdmin(user,env))return fail("Требуется вход администратора",403);
   const body=await readBody(request),status=["open","in_progress","answered","closed"].includes(body.status)?body.status:null,priority=["low","normal","high","urgent"].includes(body.priority)?body.priority:null;
   if(!status&&!priority)return fail("Нет допустимых изменений");
-  const result=await env.DB.prepare("UPDATE tickets SET status=COALESCE(?,status),priority=COALESCE(?,priority),updated_at=datetime('now') WHERE id=?").bind(status,priority,adminTicket[1]).run();if(!result.meta?.changes)return fail("Обращение не найдено",404);return json({ok:true});
+  const result=await env.DB.prepare("UPDATE tickets SET status=COALESCE(?,status),priority=COALESCE(?,priority),updated_at=datetime('now') WHERE id=?").bind(status,priority,adminTicket[1]).run();if(!result.meta?.changes)return fail("Обращение не найдено",404);
+  await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),user.id,"ticket.update",adminTicket[1],JSON.stringify({status,priority})).run();return json({ok:true});
  }
 
  if(path==="admin/dashboard"&&method==="GET"){
