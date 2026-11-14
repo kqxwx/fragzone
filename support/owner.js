@@ -2,6 +2,13 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 async function api(path,options={}){const r=await fetch("/api"+path,{credentials:"same-origin",headers:{"content-type":"application/json"},...options});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Ошибка запроса");return d;}
 function say(s,bad=false){const e=$("#message");e.textContent=s;e.className="owner-alert"+(bad?" error":"");e.hidden=false;}
+async function ownerMfa(enrollmentRequired,onDone){
+ const form=$("#loginForm");form.hidden=true;const wrap=document.createElement("section");wrap.className="owner-card owner-login";form.parentElement.appendChild(wrap);let setup=null;
+ try{if(enrollmentRequired)setup=await api("/auth/2fa/setup");}catch(e){say(e.message,true);wrap.remove();form.hidden=false;return;}
+ const intro=enrollmentRequired?'<h2>Подключение Google Authenticator</h2><p>В приложении нажми «+» → «Ввести ключ настройки», выбери Time-based и введи ключ:</p><pre style="white-space:pre-wrap;user-select:all">'+esc(setup.secret)+'</pre><p>Не передавай этот секрет никому.</p>':'<h2>Подтверждение владельца</h2><p>Введи текущий 6-значный код Google Authenticator.</p>';
+ wrap.innerHTML=intro+'<form id="ownerMfaForm"><input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="123456" required><button class="fz-btn" type="submit">Подтвердить</button></form><p id="ownerMfaError" class="owner-muted"></p>';
+ $("#ownerMfaForm").onsubmit=async e=>{e.preventDefault();const b=e.currentTarget.querySelector("button");b.disabled=true;try{const result=await api("/auth/2fa/verify",{method:"POST",body:JSON.stringify({code:new FormData(e.currentTarget).get("code")})});if(result.backupCodes?.length){wrap.innerHTML='<h2>Сохрани резервные коды</h2><p>Каждый код одноразовый. Храни их отдельно от телефона.</p><pre style="white-space:pre-wrap;user-select:all">'+result.backupCodes.join("\n")+'</pre><button id="ownerMfaSaved" class="fz-btn" type="button">Я сохранил коды</button>';$("#ownerMfaSaved").onclick=onDone;}else await onDone();}catch(err){$("#ownerMfaError").textContent=err.message;b.disabled=false;}};
+}
 let users=[],punishments=[];
 const levels={0:"Пользователь",1:"Helper",2:"Moderator",3:"Senior Moderator",4:"Administrator",5:"Head Administrator",6:"OWNER"};
 async function load(){
@@ -30,7 +37,7 @@ function renderPunishments(){
 function renderAudit(logs){$("#auditList").innerHTML='<table class="owner-table"><thead><tr><th>Дата</th><th>Сотрудник</th><th>Действие</th><th>Объект</th><th>Детали</th></tr></thead><tbody>'+logs.map(l=>'<tr><td>'+esc(l.created_at)+'</td><td>'+esc(l.actor_username||"Удалённый аккаунт")+'</td><td>'+esc(l.action)+'</td><td>'+esc(l.target_id||"—")+'</td><td>'+esc(l.details)+'</td></tr>').join("")+'</tbody></table>';}
 function renderSettings(rows){const v=Object.fromEntries(rows.map(x=>[x.key,x.value]));$("#maintenance").value=v.maintenance_mode||"false";$("#registration").value=v.registration_enabled||"true";$("#announcement").value=v.announcement||"";$("#announcementEnabled").value=v.announcement_enabled||"false";}
 async function saveSetting(key,value){await api("/admin/settings",{method:"PATCH",body:JSON.stringify({key,value})});say("Настройка сохранена");}
-$("#loginForm").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.currentTarget);try{await api("/admin/login",{method:"POST",body:JSON.stringify({email:f.get("email"),password:f.get("password")})});await load();}catch(err){say(err.message,true);}};
+$("#loginForm").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.currentTarget);try{const result=await api("/admin/login",{method:"POST",body:JSON.stringify({email:f.get("email"),password:f.get("password")})});if(result.twoFactorRequired)await ownerMfa(result.enrollmentRequired,load);else await load();}catch(err){say(err.message,true);}};
 $("#logout").onclick=async()=>{await api("/auth/logout",{method:"POST",body:"{}"});location.reload();};
 $("#refresh").onclick=()=>load().catch(e=>say(e.message,true));
 $("#staffSearch").oninput=renderStaff;
