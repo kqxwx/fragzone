@@ -544,6 +544,8 @@ footer a {
   .site-url { font-size:10px; }
 }
 
+/* Не даём display:grid/flex переопределять стандартный атрибут hidden. */
+[hidden]{display:none!important}
 .account-panel{display:grid;grid-template-columns:1fr minmax(280px,420px);gap:22px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:20px 22px;margin-bottom:22px}
 .account-copy h2{font-size:17px;margin:0 0 7px}.account-copy p{font-size:12px;line-height:1.6;color:var(--muted);margin:0}
 .account-form{display:grid;grid-template-columns:1fr 1fr;gap:8px}.account-form input{min-width:0;width:100%;background:#0b1118;color:white;border:1px solid var(--line);border-radius:8px;padding:11px;outline:none}.account-form input:focus{border-color:var(--green)}
