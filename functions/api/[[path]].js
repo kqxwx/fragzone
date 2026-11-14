@@ -244,7 +244,8 @@ async function handle(request,env){
   const target=await env.DB.prepare("SELECT id,email FROM users WHERE id=?").bind(userId).first();
   if(!target)return fail("Пользователь не найден",404);
   if(isOwner({email:target.email},env))return fail("Нельзя наказать владельца",403);
-  const expires=body.expiresAt?clean(body.expiresAt,30):null;
+  let expires=null;
+  if(body.expiresAt){const parsed=new Date(body.expiresAt);if(Number.isNaN(parsed.getTime()))return fail("Некорректная дата окончания");expires=parsed.toISOString().slice(0,19).replace("T"," ");}
   const id=crypto.randomUUID();
   await env.DB.prepare("INSERT INTO punishments(id,user_id,actor_id,type,reason,expires_at,active,created_at) VALUES(?,?,?,?,?,?,1,datetime('now'))").bind(id,userId,actor.id,type,reason,expires).run();
   await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"punishment."+type,userId,JSON.stringify({reason,expiresAt:expires})).run();
