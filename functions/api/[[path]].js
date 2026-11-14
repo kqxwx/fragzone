@@ -259,6 +259,11 @@ async function handle(request,env){
   await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"staff.level",target.id,JSON.stringify({level})).run();
   return json({ok:true,level,role:staffRole(level)});
  }
+ if(path==="admin/moderation/users"&&method==="GET"){
+  const actor=await currentUser(request,env);if(!can(actor,env,2))return fail("Нужен уровень 2 или выше",403);
+  const rows=await env.DB.prepare("SELECT id,email,username,created_at FROM users WHERE lower(email)<>lower(?) ORDER BY username COLLATE NOCASE LIMIT 500").bind(clean(env.ADMIN_EMAIL,254)).all();
+  return json({users:rows.results});
+ }
  if(path==="admin/punishments"&&method==="GET"){
   const actor=await currentUser(request,env);if(!can(actor,env,3))return fail("Нужен уровень 3 или выше",403);
   const rows=await env.DB.prepare("SELECT p.*,u.username AS target_username,u.email AS target_email,a.username AS actor_username FROM punishments p LEFT JOIN users u ON u.id=p.user_id LEFT JOIN users a ON a.id=p.actor_id ORDER BY p.created_at DESC LIMIT 300").all();
