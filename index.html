@@ -1378,7 +1378,7 @@ setInterval(() => {
       const label=document.createElement("span"); label.textContent="Вошли как "+result.user.username;
       const cabinet=document.createElement("a"); cabinet.href="/account/"; cabinet.className="site-url"; cabinet.textContent="Личный кабинет";
       if(topLink){topLink.textContent="Кабинет · "+result.user.username;topLink.hidden=false;}
-      if(adminLink)adminLink.hidden=!["admin","owner"].includes(result.user.role);
+      if(adminLink)adminLink.hidden=Number(result.user.level||0)<1&&!result.user.isOwner;
       const addAccount=document.createElement("button");
       addAccount.type="button";
       addAccount.textContent="Создать ещё аккаунт";
@@ -1412,5 +1412,8 @@ setInterval(() => {
 })();
 </script>
 
+<script>
+(async()=>{try{const r=await fetch("/api/site/announcement",{cache:"no-store"});if(!r.ok)return;const d=await r.json();if(!d.enabled||!d.text)return;const bar=document.createElement("div");bar.textContent=d.text;bar.setAttribute("role","status");bar.style.cssText="position:sticky;top:0;z-index:9999;padding:12px 18px;text-align:center;background:#182638;color:#eef3fa;border-bottom:1px solid #40516b;font:600 14px system-ui";document.body.prepend(bar);}catch(e){console.warn("FRAGZONE announcement unavailable",e);}})();
+</script>
 </body>
 </html>

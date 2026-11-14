@@ -54,8 +54,17 @@ async function ticket(){
   $("#ticketTitle").textContent=d.ticket.subject;
   $("#ticketMeta").textContent="Статус: "+(statusNames[d.ticket.status]||d.ticket.status)+" · Создано: "+d.ticket.created_at;
   $("#comments").innerHTML=d.comments.map(c=>'<article class="fz-comment"><b>'+esc(c.author_name)+'</b><time>'+esc(c.created_at)+'</time><p>'+esc(c.body)+'</p></article>').join("")||"<p>Пока нет сообщений.</p>";
-  const me=await api("/auth/me"),isAdmin=!!(me.user&&["admin","owner"].includes(me.user.role)),isOwner=!!(me.user&&d.ticket.user_id===me.user.id),isGuest=!!key;
+  const me=await api("/auth/me"),isAdmin=!!(me.user&&(Number(me.user.level||0)>=1||me.user.isOwner)),isOwner=!!(me.user&&d.ticket.user_id===me.user.id),isGuest=!!key;
   const canManage=isAdmin||isOwner||isGuest;
+  if(me.user&&Number(me.user.level||0)>=3){
+   const notesWrap=$("#internalNotes"),notesList=$("#internalNoteList");
+   if(notesWrap&&notesList){
+    notesWrap.hidden=false;
+    const loadNotes=async()=>{const nd=await api("/admin/ticket-notes?ticketId="+encodeURIComponent(id));notesList.innerHTML=(nd.notes||[]).map(n=>'<article class="fz-comment"><b>'+esc(n.author||"Сотрудник")+'</b><time>'+esc(n.created_at)+'</time><p>'+esc(n.note)+'</p></article>').join("")||"<p>Внутренних заметок пока нет.</p>";};
+    await loadNotes();
+    $("#internalNoteForm").onsubmit=async event=>{event.preventDefault();const button=event.currentTarget.querySelector("button");button.disabled=true;try{await api("/admin/ticket-notes",{method:"POST",body:JSON.stringify({ticketId:id,note:$("#internalNoteText").value})});$("#internalNoteText").value="";await loadNotes();}catch(err){notice(err.message,true);}finally{button.disabled=false;}};
+   }
+  }
   const ticketActions=$("#ticketActions"),closeButton=$("#closeTicket"),reopenButton=$("#reopenTicket");
   // Personal-ticket page intentionally has no status-action toolbar.
   if(ticketActions&&closeButton&&canManage&&d.ticket.status!=="closed"){
@@ -101,19 +110,19 @@ async function admin(){
  };
  const loadTickets=async()=>{const d=await api("/admin/tickets");tickets=Array.isArray(d.tickets)?d.tickets:[];renderStats();renderTickets();};
  const loadUsers=async()=>{
-  if(me?.role!=="owner")return;
+  if(!me?.isOwner)return;
   const d=await api("/admin/users");users=Array.isArray(d.users)?d.users:[];
   $("#adminUsers").innerHTML=users.map(u=>'<article class="fz-user-row"><div><strong>'+esc(u.username||"Без имени")+'</strong><small>'+esc(u.email)+'</small><small>Создан: '+esc(u.created_at||"—")+'</small></div><div class="fz-user-role"><span class="'+(u.role==="owner"?"fz-owner-badge":u.role==="admin"?"fz-admin-badge":"fz-user-badge")+'">'+(u.role==="owner"?"Владелец":u.role==="admin"?"Администратор":"Пользователь")+'</span>'+(u.role==="owner"?"":'<select data-user-role="'+esc(u.id)+'"><option value="user">Пользователь</option><option value="admin">Администратор</option></select>')+'</div></article>').join("")||'<div class="fz-empty">Пользователей пока нет.</div>';
   for(const u of users){if(u.role==="owner")continue;const select=document.querySelector('[data-user-role="'+CSS.escape(u.id)+'"]');select.value=u.role;select.onchange=async()=>{select.disabled=true;try{await api("/admin/users/"+encodeURIComponent(u.id),{method:"PATCH",body:JSON.stringify({role:select.value})});u.role=select.value;notice("Роль пользователя обновлена");await loadUsers();}catch(e){notice(e.message,true);select.value=u.role;}finally{select.disabled=false;}};}
  };
  async function load(){
   me=await api("/auth/me");
-  if(!me.user||!["admin","owner"].includes(me.user.role)){login.hidden=false;panel.hidden=true;return;}
+  if(!me.user||Number(me.user.level||0)<1&&! ["admin","owner","helper","moderator","senior_moderator","administrator","head_admin"].includes(me.user.role)){login.hidden=false;panel.hidden=true;return;}
   login.hidden=true;panel.hidden=false;
-  $("#adminWelcome").textContent=(me.user.role==="owner"?"Владелец FRAGZONE":"Администратор")+" · "+me.user.username+" · "+me.user.email;
-  $("#teamPanel").hidden=me.user.role!=="owner";
+  $("#adminWelcome").textContent=(me.user.isOwner?"Владелец FRAGZONE":"Уровень "+(me.user.level||4)+" · "+me.user.role)+" · "+me.user.username+" · "+me.user.email;
+  $("#teamPanel").hidden=!me.user.isOwner;if($("#ownerPanelLink"))$("#ownerPanelLink").hidden=!me.user.isOwner;
   await loadTickets();
-  if(me.user.role==="owner")await loadUsers();
+  if(me.user.isOwner)await loadUsers();
  }
  $("#adminLoginForm").onsubmit=async e=>{e.preventDefault();const button=e.currentTarget.querySelector("button");button.disabled=true;const f=new FormData(e.currentTarget);try{await api("/admin/login",{method:"POST",body:JSON.stringify({email:f.get("email"),password:f.get("password")})});await load();}catch(err){notice(err.message,true);}finally{button.disabled=false;}};
  $("#adminRoleForm").onsubmit=async e=>{
