@@ -90,7 +90,7 @@ function viewUser(user,env){const owner=isOwner(user,env),level=staffLevel(user,
 
 
 function setMfaCookie(token){return "fz_mfa_challenge="+token+"; Path=/api/auth/2fa; HttpOnly; Secure; SameSite=Strict; Max-Age=600";}
-function getMfaCookie(request){const part=(request.headers.get("Cookie")||"").split(";").map(x=>x.trim()).find(x=>x.startsWith("fz_mfa_challenge="));return part?part.slice(18):null;}
+function getMfaCookie(request){const part=(request.headers.get("Cookie")||"").split(";").map(x=>x.trim()).find(x=>x.startsWith("fz_mfa_challenge="));return part?part.slice(17):null;}
 async function mfaKey(env){const raw=String(env.TOTP_ENCRYPTION_KEY||"").trim();if(!/^[0-9a-f]{64}$/i.test(raw))throw new Error("Для 2FA задайте Cloudflare secret TOTP_ENCRYPTION_KEY (64 hex-символа)");return crypto.subtle.importKey("raw",Uint8Array.from(raw.match(/.{2}/g),x=>parseInt(x,16)),{name:"AES-GCM"},false,["encrypt","decrypt"]);}
 async function encryptSecret(secret,env){const iv=crypto.getRandomValues(new Uint8Array(12)),key=await mfaKey(env),data=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(secret));return [...iv,...new Uint8Array(data)].map(x=>x.toString(16).padStart(2,"0")).join("");}
 async function decryptSecret(value,env){const bytes=Uint8Array.from(String(value).match(/.{2}/g)||[],x=>parseInt(x,16));if(bytes.length<29)throw new Error("Повреждён секрет 2FA");const key=await mfaKey(env),plain=await crypto.subtle.decrypt({name:"AES-GCM",iv:bytes.slice(0,12)},key,bytes.slice(12));return new TextDecoder().decode(plain);}
