@@ -308,7 +308,7 @@ export async function onRequest({request,env}){
   const message=String(error?.message||"Unknown error");
   // Log only diagnostic metadata; never log request bodies, passwords, cookies, or secrets.
   console.error("FRAGZONE_API_ERROR", {errorId,name:error?.name||"Error",message});
-  if(/no such table/i.test(message))return json({error:"Таблицы поддержки не созданы. Выполните schema.sql в подключённой базе D1.",errorId},503);
+  if(/no such table/i.test(message))return json({error:"Не найдена таблица D1. Проверьте, что выполнены schema.sql и migrations/2026-11-admin-system.sql в базе, привязанной как DB.",errorId},503);
   return json({error:"Внутренняя ошибка сервера. Передайте поддержке код ошибки.",errorId},500);
  }
 }
