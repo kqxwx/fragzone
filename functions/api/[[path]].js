@@ -35,6 +35,8 @@ async function ensureSchema(db) {
   for(const sql of statements) await db.prepare(sql).run();
   try { await db.prepare("ALTER TABLE sessions ADD COLUMN mfa_verified INTEGER NOT NULL DEFAULT 0").run(); } catch(error) { if(!/duplicate column name/i.test(String(error?.message||error))) throw error; }
   try { await db.prepare("ALTER TABLE sessions ADD COLUMN mfa_recent_until TEXT").run(); } catch(error) { if(!/duplicate column name/i.test(String(error?.message||error))) throw error; }
+  try { await db.prepare("ALTER TABLE sessions ADD COLUMN mfa_stepup_attempts INTEGER NOT NULL DEFAULT 0").run(); } catch(error) { if(!/duplicate column name/i.test(String(error?.message||error))) throw error; }
+  try { await db.prepare("ALTER TABLE sessions ADD COLUMN mfa_stepup_locked_until TEXT").run(); } catch(error) { if(!/duplicate column name/i.test(String(error?.message||error))) throw error; }
  })();
  try { await schemaReadyPromise; }
  catch(error) { schemaReadyPromise=null; throw error; }
@@ -146,7 +148,12 @@ async function handle(request,env){
   let valid=!!row&&await verifyTotp(await decryptSecret(row.secret_enc,env),code);
   if(!valid&&/^[A-Z0-9-]{8,16}$/i.test(code)){const h=await sha256(code.toUpperCase()),used=await env.DB.prepare("DELETE FROM totp_recovery WHERE user_id=? AND code_hash=?").bind(actor.id,h).run();valid=!!used.meta?.changes;}
   if(!valid)return fail("Неверный код Google Authenticator или резервный код",401);
-  const token=getCookie(request);await env.DB.prepare("UPDATE sessions SET mfa_recent_until=datetime('now','+5 minutes') WHERE token_hash=?").bind(await sha256(token)).run();return json({ok:true});
+  const token=getCookie(request),sessionHash=await sha256(token),session=await env.DB.prepare("SELECT mfa_stepup_attempts,mfa_stepup_locked_until FROM sessions WHERE token_hash=? AND expires_at>datetime('now')").bind(sessionHash).first();
+  if(session?.mfa_stepup_locked_until&&session.mfa_stepup_locked_until>new Date().toISOString().slice(0,19).replace("T"," "))return fail("Слишком много попыток. Подожди 15 минут.",429);
+  let valid=!!row&&await verifyTotp(await decryptSecret(row.secret_enc,env),code);
+  if(!valid&&/^[A-Z0-9-]{8,16}$/i.test(code)){const h=await sha256(code.toUpperCase()),used=await env.DB.prepare("DELETE FROM totp_recovery WHERE user_id=? AND code_hash=?").bind(actor.id,h).run();valid=!!used.meta?.changes;}
+  if(!valid){const attempts=Number(session?.mfa_stepup_attempts||0)+1;await env.DB.prepare("UPDATE sessions SET mfa_stepup_attempts=?,mfa_stepup_locked_until=CASE WHEN ?>=5 THEN datetime('now','+15 minutes') ELSE mfa_stepup_locked_until END WHERE token_hash=?").bind(attempts,attempts,sessionHash).run();return fail("Неверный код Google Authenticator или резервный код",401);}
+  await env.DB.prepare("UPDATE sessions SET mfa_recent_until=datetime('now','+5 minutes'),mfa_stepup_attempts=0,mfa_stepup_locked_until=NULL WHERE token_hash=?").bind(sessionHash).run();return json({ok:true});
  }
 
  if(path==="auth/register"&&method==="POST"){
