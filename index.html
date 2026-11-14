@@ -1378,7 +1378,7 @@ setInterval(() => {
       const label=document.createElement("span"); label.textContent="Вошли как "+result.user.username;
       const cabinet=document.createElement("a"); cabinet.href="/account/"; cabinet.className="site-url"; cabinet.textContent="Личный кабинет";
       if(topLink){topLink.textContent="Кабинет · "+result.user.username;topLink.hidden=false;}
-      if(adminLink)adminLink.hidden=!["admin","owner"].includes(result.user.role);
+      if(adminLink)adminLink.hidden=Number(result.user.level||0)<1&&!result.user.isOwner;
       const addAccount=document.createElement("button");
       addAccount.type="button";
       addAccount.textContent="Создать ещё аккаунт";
