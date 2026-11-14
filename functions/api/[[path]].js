@@ -61,6 +61,8 @@ async function handle(request,env){
  const origin=request.headers.get("Origin");if(origin&&origin!==url.origin)return fail("Недопустимый источник запроса",403);
  if(path==="auth/me"&&method==="GET"){const user=await currentUser(request,env);return json({user:user?viewUser(user,env):null});}
  if(path==="auth/register"&&method==="POST"){
+  const registration=await env.DB.prepare("SELECT value FROM site_settings WHERE key='registration_enabled'").first();
+  if(registration?.value==="false")return fail("Регистрация временно отключена владельцем сайта",403);
   const body=await readBody(request),email=clean(body.email,254).toLowerCase(),username=clean(body.username,32),password=typeof body.password==="string"?body.password:"";
   if(!validEmail(email))return fail("Укажите корректный email");
   if(username.length<2)return fail("Имя должно содержать минимум 2 символа");
