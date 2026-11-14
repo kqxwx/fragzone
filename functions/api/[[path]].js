@@ -1,8 +1,6 @@
-import { pbkdf2 } from "node:crypto";
-
 const COOKIE = "fz_session";
 const SESSION_DAYS = 14;
-const PBKDF2_ITERATIONS = 100000;
+const PBKDF2_ITERATIONS = 210000;
 const MAX_BODY = 20000;
 const guestTicketRate = new Map();
 let schemaReadyPromise;
@@ -41,22 +39,18 @@ function json(data, status = 200, headers = {}) {
 function fail(error,status=400){return json({error},status);}
 function randomHex(bytes=32){const value=new Uint8Array(bytes);crypto.getRandomValues(value);return [...value].map(x=>x.toString(16).padStart(2,"0")).join("");}
 async function sha256(value){const hash=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value));return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,"0")).join("");}
-async function derivePassword(password,saltHex){
+async function derivePassword(password,saltHex,iterations=PBKDF2_ITERATIONS){
  const salt=Uint8Array.from(saltHex.match(/.{2}/g),x=>parseInt(x,16));
- const passwordBytes=new TextEncoder().encode(password);
- const bits=await new Promise((resolve,reject)=>{
-  pbkdf2(passwordBytes,salt,PBKDF2_ITERATIONS,32,"sha256",(error,derivedKey)=>{
-   if(error)reject(error);
-   else resolve(derivedKey);
-  });
- });
+ const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(password),"PBKDF2",false,["deriveBits"]);
+ const bits=await crypto.subtle.deriveBits({name:"PBKDF2",salt,iterations,hash:"SHA-256"},key,256);
  return [...new Uint8Array(bits)].map(x=>x.toString(16).padStart(2,"0")).join("");
 }
 async function verifyPassword(password,encoded){
  if(typeof encoded!=="string")return "invalid";
  const parts=encoded.split("$");
- if(parts.length!==4||parts[0]!=="pbkdf2"||parts[1]!==String(PBKDF2_ITERATIONS)||!/^[0-9a-f]{32}$/i.test(parts[2])||!/^[0-9a-f]{64}$/i.test(parts[3]))return "legacy";
- const actual=await derivePassword(password,parts[2]);
+ const iterations=Number(parts[1]);
+ if(parts.length!==4||parts[0]!=="pbkdf2"||![100000,210000].includes(iterations)||!/^[0-9a-f]{32}$/i.test(parts[2])||!/^[0-9a-f]{64}$/i.test(parts[3]))return "legacy";
+ const actual=await derivePassword(password,parts[2],iterations);
  const expected=parts[3].toLowerCase();
  let difference=0;
  for(let i=0;i<actual.length;i++)difference|=actual.charCodeAt(i)^expected.charCodeAt(i);
@@ -66,7 +60,15 @@ function setCookie(token,age=SESSION_DAYS*86400){return `${COOKIE}=${token}; Pat
 function getCookie(request){const part=(request.headers.get("Cookie")||"").split(";").map(x=>x.trim()).find(x=>x.startsWith(COOKIE+"="));return part?part.slice(COOKIE.length+1):null;}
 function clean(value,max){return typeof value==="string"?value.trim().replace(/\u0000/g,"").slice(0,max):"";}
 function validEmail(value){return value.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);}
-async function readBody(request){if(Number(request.headers.get("content-length")||0)>MAX_BODY)throw new Error("Слишком большой запрос");return request.json();}
+async function readBody(request){
+ const declared=Number(request.headers.get("content-length")||0);
+ if(declared>MAX_BODY)throw Object.assign(new Error("Слишком большой запрос"),{status:413});
+ const text=await request.text();
+ if(new TextEncoder().encode(text).byteLength>MAX_BODY)throw Object.assign(new Error("Слишком большой запрос"),{status:413});
+ let body;try{body=JSON.parse(text);}catch{throw Object.assign(new Error("Некорректный JSON"),{status:400});}
+ if(!body||typeof body!=="object"||Array.isArray(body))throw Object.assign(new Error("Ожидается JSON-объект"),{status:400});
+ return body;
+}
 async function currentUser(request,env){
  const token=getCookie(request);if(!token)return null;
  return env.DB.prepare("SELECT u.id,u.email,u.username,u.role,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN admin_roles ar ON ar.user_id=u.id WHERE s.token_hash=? AND s.expires_at>datetime('now') AND NOT EXISTS (SELECT 1 FROM punishments p WHERE p.user_id=u.id AND p.type='ban' AND p.active=1 AND (p.expires_at IS NULL OR p.expires_at>datetime('now')))").bind(await sha256(token)).first();
@@ -362,6 +364,7 @@ export async function onRequest({request,env}){
   return await handle(request,env);
  }
  catch(error){
+  if(error?.status)return json({error:String(error.message||"Некорректный запрос")},error.status);
   const errorId=crypto.randomUUID();
   const message=String(error?.message||"Unknown error");
   // Log only diagnostic metadata; never log request bodies, passwords, cookies, or secrets.
