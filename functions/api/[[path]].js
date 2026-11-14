@@ -144,18 +144,14 @@ async function handle(request,env){
  }
  if(path==="auth/2fa/step-up"&&method==="POST"){
   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);
+  const token=getCookie(request),sessionHash=await sha256(token),session=await env.DB.prepare("SELECT mfa_stepup_attempts,CASE WHEN mfa_stepup_locked_until>datetime('now') THEN 1 ELSE 0 END AS locked FROM sessions WHERE token_hash=? AND expires_at>datetime('now')").bind(sessionHash).first();
+  if(session?.locked)return fail("Слишком много попыток. Подожди 15 минут.",429);
   const body=await readBody(request),code=clean(body.code,20),row=await env.DB.prepare("SELECT secret_enc FROM admin_totp WHERE user_id=?").bind(actor.id).first();
-  let valid=!!row&&await verifyTotp(await decryptSecret(row.secret_enc,env),code);
-  if(!valid&&/^[A-Z0-9-]{8,16}$/i.test(code)){const h=await sha256(code.toUpperCase()),used=await env.DB.prepare("DELETE FROM totp_recovery WHERE user_id=? AND code_hash=?").bind(actor.id,h).run();valid=!!used.meta?.changes;}
-  if(!valid)return fail("Неверный код Google Authenticator или резервный код",401);
-  const token=getCookie(request),sessionHash=await sha256(token),session=await env.DB.prepare("SELECT mfa_stepup_attempts,mfa_stepup_locked_until FROM sessions WHERE token_hash=? AND expires_at>datetime('now')").bind(sessionHash).first();
-  if(session?.mfa_stepup_locked_until&&session.mfa_stepup_locked_until>new Date().toISOString().slice(0,19).replace("T"," "))return fail("Слишком много попыток. Подожди 15 минут.",429);
   let valid=!!row&&await verifyTotp(await decryptSecret(row.secret_enc,env),code);
   if(!valid&&/^[A-Z0-9-]{8,16}$/i.test(code)){const h=await sha256(code.toUpperCase()),used=await env.DB.prepare("DELETE FROM totp_recovery WHERE user_id=? AND code_hash=?").bind(actor.id,h).run();valid=!!used.meta?.changes;}
   if(!valid){const attempts=Number(session?.mfa_stepup_attempts||0)+1;await env.DB.prepare("UPDATE sessions SET mfa_stepup_attempts=?,mfa_stepup_locked_until=CASE WHEN ?>=5 THEN datetime('now','+15 minutes') ELSE mfa_stepup_locked_until END WHERE token_hash=?").bind(attempts,attempts,sessionHash).run();return fail("Неверный код Google Authenticator или резервный код",401);}
   await env.DB.prepare("UPDATE sessions SET mfa_recent_until=datetime('now','+5 minutes'),mfa_stepup_attempts=0,mfa_stepup_locked_until=NULL WHERE token_hash=?").bind(sessionHash).run();return json({ok:true});
  }
-
  if(path==="auth/register"&&method==="POST"){
   const registration=await env.DB.prepare("SELECT value FROM site_settings WHERE key='registration_enabled'").first();
   if(registration?.value==="false")return fail("Регистрация временно отключена владельцем сайта",403);
