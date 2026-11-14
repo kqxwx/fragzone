@@ -279,7 +279,7 @@ async function handle(request,env){
  }
  if(path==="admin/staff"&&method==="GET"){
   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец может управлять уровнями",403);
-  const rows=await env.DB.prepare("SELECT u.id,u.email,u.username,u.created_at,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM users u LEFT JOIN admin_roles ar ON ar.user_id=u.id ORDER BY level DESC,u.created_at DESC LIMIT 500").all();
+  const rows=await env.DB.prepare("SELECT u.id,u.email,u.username,u.created_at,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level,EXISTS(SELECT 1 FROM admin_totp t WHERE t.user_id=u.id) AS mfa_enabled FROM users u LEFT JOIN admin_roles ar ON ar.user_id=u.id ORDER BY level DESC,u.created_at DESC LIMIT 500").all();
   return json({staff:rows.results.map(x=>({...x,role:staffRole(String(x.email).toLowerCase()===clean(env.ADMIN_EMAIL,254).toLowerCase()?6:x.level)}))});
  }
  const staffMatch=path.match(/^admin\/staff\/([0-9a-f-]{36})$/i);
@@ -361,6 +361,18 @@ async function handle(request,env){
   const body=await readBody(request),ticketId=clean(body.ticketId,64),note=clean(body.note,2000);
   if(!ticketId||note.length<2)return fail("Заметка слишком короткая");
   await env.DB.prepare("INSERT INTO ticket_internal_notes(id,ticket_id,author_id,note,created_at) VALUES(?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),ticketId,actor.id,note).run();return json({ok:true},201);
+ }
+
+ if(path==="admin/2fa/reset"&&method==="POST"){
+  const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);
+  const body=await readBody(request),userId=clean(body.userId,64);if(!userId||userId===actor.id)return fail("Нельзя сбросить 2FA владельца этим способом");
+  const target=await env.DB.prepare("SELECT id,email FROM users WHERE id=?").bind(userId).first();if(!target||staffLevel(target,env)<1)return fail("Сотрудник не найден",404);
+  await env.DB.prepare("DELETE FROM admin_totp WHERE user_id=?").bind(userId).run();
+  await env.DB.prepare("DELETE FROM totp_recovery WHERE user_id=?").bind(userId).run();
+  await env.DB.prepare("DELETE FROM auth_challenges WHERE user_id=?").bind(userId).run();
+  await env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(userId).run();
+  await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"security.totp.reset",userId,"{}").run();
+  return json({ok:true});
  }
  if(path==="admin/logout-all"&&method==="POST"){
   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);
