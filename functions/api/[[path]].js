@@ -61,11 +61,21 @@ function getCookie(request){const part=(request.headers.get("Cookie")||"").split
 function clean(value,max){return typeof value==="string"?value.trim().replace(/\u0000/g,"").slice(0,max):"";}
 function validEmail(value){return value.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);}
 async function readBody(request){
- const declared=Number(request.headers.get("content-length")||0);
- if(declared>MAX_BODY)throw Object.assign(new Error("Слишком большой запрос"),{status:413});
- const text=await request.text();
- if(new TextEncoder().encode(text).byteLength>MAX_BODY)throw Object.assign(new Error("Слишком большой запрос"),{status:413});
- let body;try{body=JSON.parse(text);}catch{throw Object.assign(new Error("Некорректный JSON"),{status:400});}
+ const tooLarge=()=>Object.assign(new Error("Слишком большой запрос"),{status:413});
+ if(Number(request.headers.get("content-length")||0)>MAX_BODY)throw tooLarge();
+ const chunks=[];let size=0;
+ if(request.body){
+  const reader=request.body.getReader();
+  while(true){
+   const part=await reader.read();if(part.done)break;
+   size+=part.value.byteLength;
+   if(size>MAX_BODY){await reader.cancel();throw tooLarge();}
+   chunks.push(part.value);
+  }
+ }
+ const bytes=new Uint8Array(size);let offset=0;
+ for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
+ let body;try{body=JSON.parse(new TextDecoder().decode(bytes));}catch{throw Object.assign(new Error("Некорректный JSON"),{status:400});}
  if(!body||typeof body!=="object"||Array.isArray(body))throw Object.assign(new Error("Ожидается JSON-объект"),{status:400});
  return body;
 }
