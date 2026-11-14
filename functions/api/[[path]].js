@@ -142,7 +142,7 @@ async function handle(request,env){
  }
  if(path==="auth/2fa/step-up"&&method==="POST"){
   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);
-  const body=await readBody(request),code=clean(body.code,10),row=await env.DB.prepare("SELECT secret_enc FROM admin_totp WHERE user_id=?").bind(actor.id).first();
+  const body=await readBody(request),code=clean(body.code,20),row=await env.DB.prepare("SELECT secret_enc FROM admin_totp WHERE user_id=?").bind(actor.id).first();
   let valid=!!row&&await verifyTotp(await decryptSecret(row.secret_enc,env),code);
   if(!valid&&/^[A-Z0-9-]{8,16}$/i.test(code)){const h=await sha256(code.toUpperCase()),used=await env.DB.prepare("DELETE FROM totp_recovery WHERE user_id=? AND code_hash=?").bind(actor.id,h).run();valid=!!used.meta?.changes;}
   if(!valid)return fail("Неверный код Google Authenticator или резервный код",401);
