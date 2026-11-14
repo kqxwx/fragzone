@@ -70,11 +70,11 @@ async function init(){
  try{
   const me=await api("/auth/me");
   if(!me.user){location.replace("/#accountPanel");return}
-  const user=me.user,isAdmin=["admin","owner"].includes(user.role);
+  const user=me.user,level=Number(user.level||0),isAdmin=level>=1||user.isOwner||["admin","owner","helper","moderator","senior_moderator","administrator","head_admin"].includes(user.role);
   $("accountApp").hidden=false;
   $("welcome").textContent="Добро пожаловать, "+user.username+". Здесь твой профиль, обращения и быстрые действия.";
   $("username").textContent=user.username;$("email").textContent=user.email;$("avatar").textContent=(user.username||"F").trim().charAt(0).toUpperCase();
-  $("rolePill").textContent=user.role==="owner"?"ВЛАДЕЛЕЦ":user.role==="admin"?"АДМИНИСТРАТОР":"ИГРОК";
+  $("rolePill").textContent=user.isOwner?"ВЛАДЕЛЕЦ":({helper:"HELPER",moderator:"MODERATOR",senior_moderator:"SENIOR MODERATOR",administrator:"ADMINISTRATOR",head_admin:"HEAD ADMINISTRATOR",admin:"ADMINISTRATOR"}[user.role]||"ИГРОК");
   $("adminLink").hidden=!isAdmin;$("adminQuickLink").hidden=!isAdmin;
   $("accountId").textContent=String(user.id||"").slice(0,8).toUpperCase()||"—";
   renderSavedAccounts(user);

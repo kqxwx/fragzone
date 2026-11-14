@@ -115,6 +115,24 @@ async function admin(){
   $("#adminUsers").innerHTML=users.map(u=>'<article class="fz-user-row"><div><strong>'+esc(u.username||"Без имени")+'</strong><small>'+esc(u.email)+'</small><small>Создан: '+esc(u.created_at||"—")+'</small></div><div class="fz-user-role"><span class="'+(u.role==="owner"?"fz-owner-badge":u.role==="admin"?"fz-admin-badge":"fz-user-badge")+'">'+(u.role==="owner"?"Владелец":u.role==="admin"?"Администратор":"Пользователь")+'</span>'+(u.role==="owner"?"":'<select data-user-role="'+esc(u.id)+'"><option value="user">Пользователь</option><option value="admin">Администратор</option></select>')+'</div></article>').join("")||'<div class="fz-empty">Пользователей пока нет.</div>';
   for(const u of users){if(u.role==="owner")continue;const select=document.querySelector('[data-user-role="'+CSS.escape(u.id)+'"]');select.value=u.role;select.onchange=async()=>{select.disabled=true;try{await api("/admin/users/"+encodeURIComponent(u.id),{method:"PATCH",body:JSON.stringify({role:select.value})});u.role=select.value;notice("Роль пользователя обновлена");await loadUsers();}catch(e){notice(e.message,true);select.value=u.role;}finally{select.disabled=false;}};}
  };
+ async function loadStaffTools(){
+  const level=Number(me.user.level||0),owner=!!me.user.isOwner,wrap=$("#staffTools");
+  if(!wrap||(!owner&&level<2)){if(wrap)wrap.hidden=true;return;}
+  wrap.hidden=false;$("#staffLevelBadge").textContent=owner?"OWNER":"LEVEL "+level;
+  $("#staffToolsHint").textContent=level>=5||owner?"Мут, бан, WARN, снятие наказаний и журнал.":level>=4?"Мут и бан; просмотр истории с уровня 3.":"Мут пользователей и работа с тикетами.";
+  const data=await api("/admin/moderation/users"),targets=data.users||[];
+  $("#staffTarget").innerHTML='<option value="">Выбери пользователя</option>'+targets.map(u=>'<option value="'+esc(u.id)+'">'+esc(u.username)+' — '+esc(u.email)+'</option>').join("");
+  const type=$("#staffPunishType");
+  for(const opt of type.options){const req=opt.value==="mute"?2:opt.value==="ban"?4:5;opt.disabled=!owner&&level<req;}
+  type.value=owner||level>=5?"warn":level>=4?"ban":"mute";
+  $("#staffPunishForm").onsubmit=async e=>{e.preventDefault();const b=e.currentTarget.querySelector("button");b.disabled=true;try{const expiry=$("#staffPunishExpiry").value;await api("/admin/punishments",{method:"POST",body:JSON.stringify({userId:$("#staffTarget").value,type:type.value,reason:$("#staffPunishReason").value,expiresAt:expiry?new Date(expiry).toISOString():null})});notice("Наказание выдано");e.currentTarget.reset();await loadStaffTools();}catch(err){notice(err.message,true);}finally{b.disabled=false;}};
+  if(owner||level>=3){
+   const [ps,logs]=await Promise.all([api("/admin/punishments"),api("/admin/audit")]);
+   $("#staffPunishmentList").innerHTML='<h3>История наказаний</h3>'+((ps.punishments||[]).map(p=>'<article class="fz-admin-ticket"><div><b>'+esc(p.target_username||p.target_email||"Пользователь")+'</b><div class="fz-ticket-meta">'+esc(p.type.toUpperCase())+' · '+esc(p.reason)+' · '+(p.active?"Активно":"Снято")+'</div></div>'+(p.active&&(owner||level>=5)?'<button class="fz-btn fz-btn-ghost" data-revoke-punishment="'+esc(p.id)+'">Снять</button>':"")+'</article>').join("")||'<p class="fz-muted">Наказаний пока нет.</p>');
+   for(const b of document.querySelectorAll("[data-revoke-punishment]"))b.onclick=async()=>{b.disabled=true;try{await api("/admin/punishments/"+encodeURIComponent(b.dataset.revokePunishment),{method:"PATCH",body:JSON.stringify({active:false})});notice("Наказание снято");await loadStaffTools();}catch(err){notice(err.message,true);b.disabled=false;}};
+   $("#staffAuditList").innerHTML='<h3>Последние действия команды</h3>'+((logs.logs||[]).slice(0,30).map(l=>'<article class="fz-admin-ticket"><div><b>'+esc(l.action)+'</b><div class="fz-ticket-meta">'+esc(l.actor_username||"Сотрудник")+' · '+esc(l.created_at)+' · '+esc(l.target_id||"")+'</div></div></article>').join("")||'<p class="fz-muted">Записей пока нет.</p>');
+  }
+ }
  async function load(){
   me=await api("/auth/me");
   if(!me.user||Number(me.user.level||0)<1&&! ["admin","owner","helper","moderator","senior_moderator","administrator","head_admin"].includes(me.user.role)){login.hidden=false;panel.hidden=true;return;}
@@ -123,8 +141,9 @@ async function admin(){
   $("#teamPanel").hidden=!me.user.isOwner;if($("#ownerPanelLink"))$("#ownerPanelLink").hidden=!me.user.isOwner;
   await loadTickets();
   if(me.user.isOwner)await loadUsers();
+  await loadStaffTools();
  }
- $("#adminLoginForm").onsubmit=async e=>{e.preventDefault();const button=e.currentTarget.querySelector("button");button.disabled=true;const f=new FormData(e.currentTarget);try{await api("/admin/login",{method:"POST",body:JSON.stringify({email:f.get("email"),password:f.get("password")})});await load();}catch(err){notice(err.message,true);}finally{button.disabled=false;}};
+ $("#adminLoginForm").onsubmit=async e=>{e.preventDefault();const button=e.currentTarget.querySelector("button");button.disabled=true;const f=new FormData(e.currentTarget);try{await api("/auth/login",{method:"POST",body:JSON.stringify({email:f.get("email"),password:f.get("password")})});await load();}catch(err){notice(err.message,true);}finally{button.disabled=false;}};
  $("#adminRoleForm").onsubmit=async e=>{
   e.preventDefault();const form=e.currentTarget,button=form.querySelector('button[type="submit"]'),data=new FormData(form);
   button.disabled=true;hideNotice();
