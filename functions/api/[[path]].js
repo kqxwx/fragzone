@@ -40,15 +40,18 @@ function validEmail(value){return value.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$
 async function readBody(request){if(Number(request.headers.get("content-length")||0)>MAX_BODY)throw new Error("Слишком большой запрос");return request.json();}
 async function currentUser(request,env){
  const token=getCookie(request);if(!token)return null;
- return env.DB.prepare(`SELECT u.id,u.email,u.username,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at > datetime('now')`).bind(await sha256(token)).first();
+ return env.DB.prepare(`SELECT u.id,u.email,u.username,u.role,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN admin_roles ar ON ar.user_id=u.id WHERE s.token_hash=? AND s.expires_at > datetime('now')`).bind(await sha256(token)).first();
 }
 async function createSession(userId,env){
  const token=randomHex(32),expires=new Date(Date.now()+SESSION_DAYS*86400000).toISOString().slice(0,19).replace("T"," ");
  await env.DB.prepare("INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)").bind(await sha256(token),userId,expires).run();return token;
 }
 function isOwner(user,env){return !!user&&clean(env.ADMIN_EMAIL,254).toLowerCase()===String(user.email||'').toLowerCase();}
-function isAdmin(user,env){return !!user&&(user.role==="admin"||isOwner(user,env));}
-function viewUser(user,env){const owner=isOwner(user,env);return{id:user.id,email:user.email,username:user.username,role:owner?'owner':user.role,isOwner:owner};}
+function isAdmin(user,env){return !!user&&(Number(user.level||0)>=1||user.role==="admin"||isOwner(user,env));}
+function staffLevel(user,env){return isOwner(user,env)?6:Number(user?.level||(user?.role==="admin"?4:0));}
+function staffRole(level){return ({0:"user",1:"helper",2:"moderator",3:"senior_moderator",4:"administrator",5:"head_admin",6:"owner"})[level]||"user";}
+function can(user,env,minimum){return staffLevel(user,env)>=minimum;}
+function viewUser(user,env){const owner=isOwner(user,env),level=staffLevel(user,env);return{id:user.id,email:user.email,username:user.username,role:owner?'owner':(level?staffRole(level):'user'),level,isOwner:owner};}
 
 async function handle(request,env){
  if(!env.DB)return fail("База D1 не подключена. В Cloudflare Pages → Settings → Bindings добавьте D1 database binding с именем DB.",503);
@@ -188,6 +191,99 @@ async function handle(request,env){
   const body=await readBody(request),status=["open","in_progress","answered","closed"].includes(body.status)?body.status:null,priority=["low","normal","high","urgent"].includes(body.priority)?body.priority:null;
   if(!status&&!priority)return fail("Нет допустимых изменений");
   const result=await env.DB.prepare("UPDATE tickets SET status=COALESCE(?,status),priority=COALESCE(?,priority),updated_at=datetime('now') WHERE id=?").bind(status,priority,adminTicket[1]).run();if(!result.meta?.changes)return fail("Обращение не найдено",404);return json({ok:true});
+ }
+
+ if(path==="admin/dashboard"&&method==="GET"){
+  const actor=await currentUser(request,env);if(!isAdmin(actor,env))return fail("Требуется доступ администрации",403);
+  const [users,tickets,open,warns,bans,staff]=await Promise.all([
+   env.DB.prepare("SELECT COUNT(*) AS n FROM users").first(),
+   env.DB.prepare("SELECT COUNT(*) AS n FROM tickets").first(),
+   env.DB.prepare("SELECT COUNT(*) AS n FROM tickets WHERE status IN ('open','in_progress')").first(),
+   env.DB.prepare("SELECT COUNT(*) AS n FROM punishments WHERE type='warn' AND active=1").first(),
+   env.DB.prepare("SELECT COUNT(*) AS n FROM punishments WHERE type='ban' AND active=1").first(),
+   env.DB.prepare("SELECT COUNT(*) AS n FROM admin_roles WHERE level>0").first()
+  ]);
+  return json({stats:{users:users?.n||0,tickets:tickets?.n||0,openTickets:open?.n||0,warns:warns?.n||0,bans:bans?.n||0,staff:staff?.n||0},me:viewUser(actor,env)});
+ }
+ if(path==="admin/staff"&&method==="GET"){
+  const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец может управлять уровнями",403);
+  const rows=await env.DB.prepare("SELECT u.id,u.email,u.username,u.created_at,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM users u LEFT JOIN admin_roles ar ON ar.user_id=u.id ORDER BY level DESC,u.created_at DESC LIMIT 500").all();
+  return json({staff:rows.results.map(x=>({...x,role:staffRole(String(x.email).toLowerCase()===clean(env.ADMIN_EMAIL,254).toLowerCase()?6:x.level)}))});
+ }
+ const staffMatch=path.match(/^admin\/staff\/([0-9a-f-]{36})$/i);
+ if(staffMatch&&method==="PATCH"){
+  const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец может выдавать уровни",403);
+  const body=await readBody(request),level=Number(body.level);
+  if(!Number.isInteger(level)||level<0||level>5)return fail("Уровень должен быть от 0 до 5");
+  const target=await env.DB.prepare("SELECT id,email FROM users WHERE id=?").bind(staffMatch[1]).first();
+  if(!target)return fail("Пользователь не найден",404);
+  if(String(target.email).toLowerCase()===clean(env.ADMIN_EMAIL,254).toLowerCase())return fail("Нельзя изменить владельца",403);
+  await env.DB.prepare("INSERT INTO admin_roles(user_id,level,updated_by,updated_at) VALUES(?,?,?,datetime('now')) ON CONFLICT(user_id) DO UPDATE SET level=excluded.level,updated_by=excluded.updated_by,updated_at=datetime('now')").bind(target.id,level,actor.id).run();
+  await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"staff.level",target.id,JSON.stringify({level})).run();
+  return json({ok:true,level,role:staffRole(level)});
+ }
+ if(path==="admin/punishments"&&method==="GET"){
+  const actor=await currentUser(request,env);if(!can(actor,env,3))return fail("Нужен уровень 3 или выше",403);
+  const rows=await env.DB.prepare("SELECT p.*,u.username AS target_username,u.email AS target_email,a.username AS actor_username FROM punishments p LEFT JOIN users u ON u.id=p.user_id LEFT JOIN users a ON a.id=p.actor_id ORDER BY p.created_at DESC LIMIT 300").all();
+  return json({punishments:rows.results});
+ }
+ if(path==="admin/punishments"&&method==="POST"){
+  const actor=await currentUser(request,env);if(!isAdmin(actor,env))return fail("Требуется доступ администрации",403);
+  const body=await readBody(request),type=clean(body.type,12),userId=clean(body.userId,64),reason=clean(body.reason,500);
+  if(!["warn","ban","mute"].includes(type)||!userId||reason.length<3)return fail("Укажите тип наказания, пользователя и причину");
+  const required=type==="warn"?5:type==="ban"?4:2;
+  if(!can(actor,env,required))return fail("Недостаточно прав для этого наказания",403);
+  const target=await env.DB.prepare("SELECT id,email FROM users WHERE id=?").bind(userId).first();
+  if(!target)return fail("Пользователь не найден",404);
+  if(isOwner({email:target.email},env))return fail("Нельзя наказать владельца",403);
+  const expires=body.expiresAt?clean(body.expiresAt,30):null;
+  const id=crypto.randomUUID();
+  await env.DB.prepare("INSERT INTO punishments(id,user_id,actor_id,type,reason,expires_at,active,created_at) VALUES(?,?,?,?,?,?,1,datetime('now'))").bind(id,userId,actor.id,type,reason,expires).run();
+  await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"punishment."+type,userId,JSON.stringify({reason,expiresAt:expires})).run();
+  return json({ok:true,id},201);
+ }
+ const punishmentMatch=path.match(/^admin\/punishments\/([0-9a-f-]{36})$/i);
+ if(punishmentMatch&&method==="PATCH"){
+  const actor=await currentUser(request,env);if(!can(actor,env,5))return fail("Нужен уровень 5 или владелец",403);
+  const body=await readBody(request),active=body.active===true?1:body.active===false?0:null;
+  if(active===null)return fail("Укажите active: true или false");
+  await env.DB.prepare("UPDATE punishments SET active=? WHERE id=?").bind(active,punishmentMatch[1]).run();
+  await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"punishment.update",punishmentMatch[1],JSON.stringify({active:!!active})).run();
+  return json({ok:true});
+ }
+ if(path==="admin/audit"&&method==="GET"){
+  const actor=await currentUser(request,env);if(!can(actor,env,3))return fail("Нужен уровень 3 или выше",403);
+  const rows=await env.DB.prepare("SELECT l.*,u.username AS actor_username FROM audit_logs l LEFT JOIN users u ON u.id=l.actor_id ORDER BY l.created_at DESC LIMIT 500").all();
+  return json({logs:rows.results});
+ }
+ if(path==="admin/settings"&&method==="GET"){
+  const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);
+  const rows=await env.DB.prepare("SELECT key,value,updated_at FROM site_settings ORDER BY key").all();return json({settings:rows.results});
+ }
+ if(path==="admin/settings"&&method==="PATCH"){
+  const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);
+  const body=await readBody(request),key=clean(body.key,64),value=clean(body.value,2000);
+  if(!["maintenance_mode","registration_enabled","announcement","announcement_enabled"].includes(key))return fail("Недопустимая настройка");
+  await env.DB.prepare("INSERT INTO site_settings(key,value,updated_by,updated_at) VALUES(?,?,?,datetime('now')) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_by=excluded.updated_by,updated_at=datetime('now')").bind(key,value,actor.id).run();
+  await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"settings.update",key,JSON.stringify({value})).run();
+  return json({ok:true});
+ }
+ if(path==="admin/ticket-notes"&&method==="GET"){
+  const actor=await currentUser(request,env);if(!can(actor,env,3))return fail("Нужен уровень 3 или выше",403);
+  const ticketId=clean(url.searchParams.get("ticketId"),64);if(!ticketId)return fail("Укажите ticketId");
+  const rows=await env.DB.prepare("SELECT n.*,u.username AS author FROM ticket_internal_notes n LEFT JOIN users u ON u.id=n.author_id WHERE n.ticket_id=? ORDER BY n.created_at").bind(ticketId).all();return json({notes:rows.results});
+ }
+ if(path==="admin/ticket-notes"&&method==="POST"){
+  const actor=await currentUser(request,env);if(!can(actor,env,3))return fail("Нужен уровень 3 или выше",403);
+  const body=await readBody(request),ticketId=clean(body.ticketId,64),note=clean(body.note,2000);
+  if(!ticketId||note.length<2)return fail("Заметка слишком короткая");
+  await env.DB.prepare("INSERT INTO ticket_internal_notes(id,ticket_id,author_id,note,created_at) VALUES(?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),ticketId,actor.id,note).run();return json({ok:true},201);
+ }
+ if(path==="admin/logout-all"&&method==="POST"){
+  const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);
+  const body=await readBody(request),userId=clean(body.userId,64);if(!userId)return fail("Укажите пользователя");
+  await env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(userId).run();
+  await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"sessions.revoke",userId,"{}").run();return json({ok:true});
  }
  return fail("Маршрут не найден",404);
 }
