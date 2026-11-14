@@ -1,6 +1,17 @@
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-async function api(path,options={}){const r=await fetch("/api"+path,{credentials:"same-origin",headers:{"content-type":"application/json"},...options});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Ошибка запроса");return d;}
+async function api(path,options={}){
+ const send=()=>fetch("/api"+path,{credentials:"same-origin",headers:{"content-type":"application/json"},...options});
+ let r=await send(),d=await r.json().catch(()=>({}));
+ if(r.status===428&&d.error==="STEP_UP_REQUIRED"){
+  const code=window.prompt("Для опасного действия подтверди личность: введи текущий код Google Authenticator.");
+  if(!code)throw new Error("Действие отменено");
+  const sr=await fetch("/api/auth/2fa/step-up",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify({code})}),sd=await sr.json().catch(()=>({}));
+  if(!sr.ok)throw new Error(sd.error||"Не удалось подтвердить 2FA");
+  r=await send();d=await r.json().catch(()=>({}));
+ }
+ if(!r.ok)throw new Error(d.error||"Ошибка запроса");return d;
+}
 function say(s,bad=false){const e=$("#message");e.textContent=s;e.className="owner-alert"+(bad?" error":"");e.hidden=false;}
 async function ownerMfa(enrollmentRequired,onDone){
  const form=$("#loginForm");form.hidden=true;const wrap=document.createElement("section");wrap.className="owner-card owner-login";form.parentElement.appendChild(wrap);let setup=null;
