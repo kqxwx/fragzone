@@ -1,6 +1,6 @@
 import { pbkdf2Sync, randomBytes } from "node:crypto";
 
-const ITERATIONS = 100000;
+const ITERATIONS = 210000;
 const password = process.argv[2];
 
 if (!password || password.length < 10 || password.length > 128) {

@@ -1,8 +1,6 @@
-import { pbkdf2 } from "node:crypto";
-
 const COOKIE = "fz_session";
 const SESSION_DAYS = 14;
-const PBKDF2_ITERATIONS = 100000;
+const PBKDF2_ITERATIONS = 210000;
 const MAX_BODY = 20000;
 const guestTicketRate = new Map();
 let schemaReadyPromise;
@@ -41,22 +39,18 @@ function json(data, status = 200, headers = {}) {
 function fail(error,status=400){return json({error},status);}
 function randomHex(bytes=32){const value=new Uint8Array(bytes);crypto.getRandomValues(value);return [...value].map(x=>x.toString(16).padStart(2,"0")).join("");}
 async function sha256(value){const hash=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value));return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,"0")).join("");}
-async function derivePassword(password,saltHex){
+async function derivePassword(password,saltHex,iterations=PBKDF2_ITERATIONS){
  const salt=Uint8Array.from(saltHex.match(/.{2}/g),x=>parseInt(x,16));
- const passwordBytes=new TextEncoder().encode(password);
- const bits=await new Promise((resolve,reject)=>{
-  pbkdf2(passwordBytes,salt,PBKDF2_ITERATIONS,32,"sha256",(error,derivedKey)=>{
-   if(error)reject(error);
-   else resolve(derivedKey);
-  });
- });
+ const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(password),"PBKDF2",false,["deriveBits"]);
+ const bits=await crypto.subtle.deriveBits({name:"PBKDF2",salt,iterations,hash:"SHA-256"},key,256);
  return [...new Uint8Array(bits)].map(x=>x.toString(16).padStart(2,"0")).join("");
 }
 async function verifyPassword(password,encoded){
  if(typeof encoded!=="string")return "invalid";
  const parts=encoded.split("$");
- if(parts.length!==4||parts[0]!=="pbkdf2"||parts[1]!==String(PBKDF2_ITERATIONS)||!/^[0-9a-f]{32}$/i.test(parts[2])||!/^[0-9a-f]{64}$/i.test(parts[3]))return "legacy";
- const actual=await derivePassword(password,parts[2]);
+ const iterations=Number(parts[1]);
+ if(parts.length!==4||parts[0]!=="pbkdf2"||![100000,210000].includes(iterations)||!/^[0-9a-f]{32}$/i.test(parts[2])||!/^[0-9a-f]{64}$/i.test(parts[3]))return "legacy";
+ const actual=await derivePassword(password,parts[2],iterations);
  const expected=parts[3].toLowerCase();
  let difference=0;
  for(let i=0;i<actual.length;i++)difference|=actual.charCodeAt(i)^expected.charCodeAt(i);
@@ -66,7 +60,25 @@ function setCookie(token,age=SESSION_DAYS*86400){return `${COOKIE}=${token}; Pat
 function getCookie(request){const part=(request.headers.get("Cookie")||"").split(";").map(x=>x.trim()).find(x=>x.startsWith(COOKIE+"="));return part?part.slice(COOKIE.length+1):null;}
 function clean(value,max){return typeof value==="string"?value.trim().replace(/\u0000/g,"").slice(0,max):"";}
 function validEmail(value){return value.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);}
-async function readBody(request){if(Number(request.headers.get("content-length")||0)>MAX_BODY)throw new Error("Слишком большой запрос");return request.json();}
+async function readBody(request){
+ const tooLarge=()=>Object.assign(new Error("Слишком большой запрос"),{status:413});
+ if(Number(request.headers.get("content-length")||0)>MAX_BODY)throw tooLarge();
+ const chunks=[];let size=0;
+ if(request.body){
+  const reader=request.body.getReader();
+  while(true){
+   const part=await reader.read();if(part.done)break;
+   size+=part.value.byteLength;
+   if(size>MAX_BODY){await reader.cancel();throw tooLarge();}
+   chunks.push(part.value);
+  }
+ }
+ const bytes=new Uint8Array(size);let offset=0;
+ for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
+ let body;try{body=JSON.parse(new TextDecoder().decode(bytes));}catch{throw Object.assign(new Error("Некорректный JSON"),{status:400});}
+ if(!body||typeof body!=="object"||Array.isArray(body))throw Object.assign(new Error("Ожидается JSON-объект"),{status:400});
+ return body;
+}
 async function currentUser(request,env){
  const token=getCookie(request);if(!token)return null;
  return env.DB.prepare("SELECT u.id,u.email,u.username,u.role,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN admin_roles ar ON ar.user_id=u.id WHERE s.token_hash=? AND s.expires_at>datetime('now') AND NOT EXISTS (SELECT 1 FROM punishments p WHERE p.user_id=u.id AND p.type='ban' AND p.active=1 AND (p.expires_at IS NULL OR p.expires_at>datetime('now')))").bind(await sha256(token)).first();
@@ -77,7 +89,7 @@ async function createSession(userId,env){
  const owner=!!identity&&clean(env.ADMIN_EMAIL,254).toLowerCase()===String(identity.email||"").toLowerCase(),staff=owner||Number(identity?.level||0)>=1;
  const age=owner?8*3600000:staff?12*3600000:SESSION_DAYS*86400000;
  const token=randomHex(32),expires=new Date(Date.now()+age).toISOString().slice(0,19).replace("T"," ");
- await env.DB.prepare("INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)").bind(await sha256(token),userId,expires).run();return token;
+ await env.DB.prepare("INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)").bind(await sha256(token),userId,expires).run();return {token,maxAge:Math.floor(age/1000)};
 }
 function isOwner(user,env){return !!user&&clean(env.ADMIN_EMAIL,254).toLowerCase()===String(user.email||'').toLowerCase();}
 function isAdmin(user,env){return !!user&&staffLevel(user,env)>=1;}
@@ -104,7 +116,7 @@ async function handle(request,env){
   if(await env.DB.prepare("SELECT id FROM users WHERE email=?").bind(email).first())return fail("Аккаунт с таким email уже существует",409);
   const salt=randomHex(16),hash="pbkdf2$"+PBKDF2_ITERATIONS+"$"+salt+"$"+await derivePassword(password,salt),id=crypto.randomUUID();
   await env.DB.prepare("INSERT INTO users(id,email,username,password_hash,role) VALUES(?,?,?,?,'user')").bind(id,email,username,hash).run();
-  const token=await createSession(id,env);return json({user:{id,email,username,role:"user"}},201,{"set-cookie":setCookie(token)});
+  const session=await createSession(id,env);return json({user:{id,email,username,role:"user"}},201,{"set-cookie":setCookie(session.token,session.maxAge)});
  }
  if(path==="auth/login"&&method==="POST"){
   const body=await readBody(request),email=clean(body.email,254).toLowerCase(),password=typeof body.password==="string"?body.password:"";
@@ -116,7 +128,7 @@ async function handle(request,env){
   if(passwordCheck==="legacy")return fail("Для этого аккаунта требуется восстановление пароля: сохранённый хеш использует старый формат, несовместимый с бесплатным тарифом Cloudflare.",409);
   if(passwordCheck!==true)return fail("Неверный email или пароль",401);
   const staff=await env.DB.prepare("SELECT level FROM admin_roles WHERE user_id=?").bind(user.id).first();user.level=staff?.level??(user.role==="admin"?4:0);
-  const token=await createSession(user.id,env);return json({user:viewUser(user,env)},200,{"set-cookie":setCookie(token)});
+  const session=await createSession(user.id,env);return json({user:viewUser(user,env)},200,{"set-cookie":setCookie(session.token,session.maxAge)});
  }
  if(path==="auth/logout"&&method==="POST"){const token=getCookie(request);if(token)await env.DB.prepare("DELETE FROM sessions WHERE token_hash=?").bind(await sha256(token)).run();return json({ok:true},200,{"set-cookie":setCookie("",0)});}
  if(path==="tickets"&&method==="POST"){
@@ -191,7 +203,7 @@ async function handle(request,env){
   let admin=await env.DB.prepare("SELECT * FROM users WHERE email=?").bind(email).first();
   if(!admin){const id=crypto.randomUUID();await env.DB.prepare("INSERT INTO users(id,email,username,password_hash,role) VALUES(?,?, 'Владелец',?,'admin')").bind(id,email,configuredAdminHash).run();admin={id,email,username:"Владелец",role:"admin"};}
   else{await env.DB.prepare("UPDATE users SET role='admin' WHERE id=?").bind(admin.id).run();admin.role="admin";}
-  admin.level=6;const token=await createSession(admin.id,env);return json({user:viewUser(admin,env)},200,{"set-cookie":setCookie(token)});
+  admin.level=6;const session=await createSession(admin.id,env);return json({user:viewUser(admin,env)},200,{"set-cookie":setCookie(session.token,session.maxAge)});
  }
  if(path==="admin/users"&&method==="GET"){
   const user=await currentUser(request,env);if(!isOwner(user,env))return fail("Только владелец может управлять администраторами",403);
@@ -209,6 +221,7 @@ async function handle(request,env){
   if(!target)return fail("Пользователь с таким email не найден. Сначала он должен зарегистрироваться.",404);
   await env.DB.prepare("UPDATE users SET role=? WHERE id=?").bind(role,target.id).run();await env.DB.prepare("INSERT INTO admin_roles(user_id,level,updated_by,updated_at) VALUES(?,?,?,datetime('now')) ON CONFLICT(user_id) DO UPDATE SET level=excluded.level,updated_by=excluded.updated_by,updated_at=datetime('now')").bind(target.id,role==="admin"?4:0,actor.id).run();
   await env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(target.id).run();
+  await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"user.role",target.id,JSON.stringify({role})).run();
   return json({ok:true,user:{id:target.id,email:target.email,username:target.username,role}});
  }
  const adminUser=path.match(new RegExp("^admin/users/([0-9a-f-]{36})$","i"));
@@ -221,6 +234,7 @@ async function handle(request,env){
   if(String(target.email).toLowerCase()===clean(env.ADMIN_EMAIL,254).toLowerCase())return fail("Нельзя изменить роль владельца",403);
   await env.DB.prepare("UPDATE users SET role=? WHERE id=?").bind(role,target.id).run();await env.DB.prepare("INSERT INTO admin_roles(user_id,level,updated_by,updated_at) VALUES(?,?,?,datetime('now')) ON CONFLICT(user_id) DO UPDATE SET level=excluded.level,updated_by=excluded.updated_by,updated_at=datetime('now')").bind(target.id,role==="admin"?4:0,actor.id).run();
   await env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(target.id).run();
+  await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"user.role",target.id,JSON.stringify({role})).run();
   return json({ok:true,user:{id:target.id,email:target.email,role}});
  }
  if(path==="admin/tickets"&&method==="GET"){
@@ -301,7 +315,7 @@ async function handle(request,env){
   const actor=await currentUser(request,env);if(!can(actor,env,5))return fail("Нужен уровень 5 или владелец",403);
   const body=await readBody(request),active=body.active===true?1:body.active===false?0:null;
   if(active===null)return fail("Укажите active: true или false");
-  await env.DB.prepare("UPDATE punishments SET active=? WHERE id=?").bind(active,punishmentMatch[1]).run();
+  const result=await env.DB.prepare("UPDATE punishments SET active=? WHERE id=?").bind(active,punishmentMatch[1]).run();if(!result.meta?.changes)return fail("Наказание не найдено",404);
   await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"punishment.update",punishmentMatch[1],JSON.stringify({active:!!active})).run();
   return json({ok:true});
  }
@@ -336,7 +350,9 @@ async function handle(request,env){
   const actor=await currentUser(request,env);if(!can(actor,env,3))return fail("Нужен уровень 3 или выше",403);
   const body=await readBody(request),ticketId=clean(body.ticketId,64),note=clean(body.note,2000);
   if(!ticketId||note.length<2)return fail("Заметка слишком короткая");
-  await env.DB.prepare("INSERT INTO ticket_internal_notes(id,ticket_id,author_id,note,created_at) VALUES(?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),ticketId,actor.id,note).run();return json({ok:true},201);
+  const ticket=await env.DB.prepare("SELECT id FROM tickets WHERE id=?").bind(ticketId).first();if(!ticket)return fail("Обращение не найдено",404);
+  await env.DB.prepare("INSERT INTO ticket_internal_notes(id,ticket_id,author_id,note,created_at) VALUES(?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),ticketId,actor.id,note).run();
+  await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"ticket.internal_note",ticketId,"{}").run();return json({ok:true},201);
  }
 
 
@@ -362,6 +378,7 @@ export async function onRequest({request,env}){
   return await handle(request,env);
  }
  catch(error){
+  if(error?.status)return json({error:String(error.message||"Некорректный запрос")},error.status);
   const errorId=crypto.randomUUID();
   const message=String(error?.message||"Unknown error");
   // Log only diagnostic metadata; never log request bodies, passwords, cookies, or secrets.
