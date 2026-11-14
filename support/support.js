@@ -56,6 +56,15 @@ async function ticket(){
   $("#comments").innerHTML=d.comments.map(c=>'<article class="fz-comment"><b>'+esc(c.author_name)+'</b><time>'+esc(c.created_at)+'</time><p>'+esc(c.body)+'</p></article>').join("")||"<p>Пока нет сообщений.</p>";
   const me=await api("/auth/me"),isAdmin=!!(me.user&&(Number(me.user.level||0)>=1||me.user.isOwner)),isOwner=!!(me.user&&d.ticket.user_id===me.user.id),isGuest=!!key;
   const canManage=isAdmin||isOwner||isGuest;
+  if(me.user&&Number(me.user.level||0)>=3){
+   const notesWrap=$("#internalNotes"),notesList=$("#internalNoteList");
+   if(notesWrap&&notesList){
+    notesWrap.hidden=false;
+    const loadNotes=async()=>{const nd=await api("/admin/ticket-notes?ticketId="+encodeURIComponent(id));notesList.innerHTML=(nd.notes||[]).map(n=>'<article class="fz-comment"><b>'+esc(n.author||"Сотрудник")+'</b><time>'+esc(n.created_at)+'</time><p>'+esc(n.note)+'</p></article>').join("")||"<p>Внутренних заметок пока нет.</p>";};
+    await loadNotes();
+    $("#internalNoteForm").onsubmit=async event=>{event.preventDefault();const button=event.currentTarget.querySelector("button");button.disabled=true;try{await api("/admin/ticket-notes",{method:"POST",body:JSON.stringify({ticketId:id,note:$("#internalNoteText").value})});$("#internalNoteText").value="";await loadNotes();}catch(err){notice(err.message,true);}finally{button.disabled=false;}};
+   }
+  }
   const ticketActions=$("#ticketActions"),closeButton=$("#closeTicket"),reopenButton=$("#reopenTicket");
   // Personal-ticket page intentionally has no status-action toolbar.
   if(ticketActions&&closeButton&&canManage&&d.ticket.status!=="closed"){
