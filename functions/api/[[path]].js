@@ -122,6 +122,8 @@ async function handle(request,env){
  if(method==="OPTIONS")return new Response(null,{status:204});
  const origin=request.headers.get("Origin");if(origin&&origin!==url.origin)return fail("Недопустимый источник запроса",403);
  if(path==="auth/me"&&method==="GET"){const user=await currentUser(request,env);return json({user:user?viewUser(user,env):null});}
+ if(path==="auth/2fa/setup"&&method==="GET"){const token=getMfaCookie(request);if(!token)return fail("Сеанс настройки истёк",401);const hash=await sha256(token),ch=await env.DB.prepare("SELECT * FROM auth_challenges WHERE token_hash=? AND purpose='enroll' AND expires_at>datetime('now')").bind(hash).first();if(!ch)return fail("Сеанс настройки истёк",401);let secret;if(ch.pending_secret_enc)secret=await decryptSecret(ch.pending_secret_enc,env);else{secret=base32Encode(crypto.getRandomValues(new Uint8Array(20)));const encrypted=await encryptSecret(secret,env);await env.DB.prepare("UPDATE auth_challenges SET pending_secret_enc=? WHERE token_hash=?").bind(encrypted,hash).run();}const user=await env.DB.prepare("SELECT email FROM users WHERE id=?").bind(ch.user_id).first();const uri="otpauth://totp/FRAGZONE:"+encodeURIComponent(user.email)+"?secret="+secret+"&issuer=FRAGZONE&algorithm=SHA1&digits=6&period=30";return json({secret,uri,account:user.email});}
+ if(path==="auth/2fa/verify"&&method==="POST"){return finishMfaLogin(request,env,await readBody(request));}
  if(path==="auth/register"&&method==="POST"){
   const registration=await env.DB.prepare("SELECT value FROM site_settings WHERE key='registration_enabled'").first();
   if(registration?.value==="false")return fail("Регистрация временно отключена владельцем сайта",403);
@@ -144,7 +146,7 @@ async function handle(request,env){
   const passwordCheck=await verifyPassword(password,user.password_hash);
   if(passwordCheck==="legacy")return fail("Для этого аккаунта требуется восстановление пароля: сохранённый хеш использует старый формат, несовместимый с бесплатным тарифом Cloudflare.",409);
   if(passwordCheck!==true)return fail("Неверный email или пароль",401);
-  const staff=await env.DB.prepare("SELECT level FROM admin_roles WHERE user_id=?").bind(user.id).first();user.level=staff?.level??(user.role==="admin"?4:0);const token=await createSession(user.id,env);return json({user:viewUser(user,env)},200,{"set-cookie":setCookie(token)});
+  const staff=await env.DB.prepare("SELECT level FROM admin_roles WHERE user_id=?").bind(user.id).first();user.level=staff?.level??(user.role==="admin"?4:0);if(staffLevel(user,env)>=1){const enrolled=await env.DB.prepare("SELECT user_id FROM admin_totp WHERE user_id=?").bind(user.id).first(),challenge=await createMfaChallenge(user,enrolled?"verify":"enroll",env);return json({twoFactorRequired:true,enrollmentRequired:!enrolled},200,{"set-cookie":setMfaCookie(challenge)});}const token=await createSession(user.id,env);return json({user:viewUser(user,env)},200,{"set-cookie":setCookie(token)});
  }
  if(path==="auth/logout"&&method==="POST"){const token=getCookie(request);if(token)await env.DB.prepare("DELETE FROM sessions WHERE token_hash=?").bind(await sha256(token)).run();return json({ok:true},200,{"set-cookie":setCookie("",0)});}
  if(path==="tickets"&&method==="POST"){
@@ -217,7 +219,7 @@ async function handle(request,env){
   let admin=await env.DB.prepare("SELECT * FROM users WHERE email=?").bind(email).first();
   if(!admin){const id=crypto.randomUUID();await env.DB.prepare("INSERT INTO users(id,email,username,password_hash,role) VALUES(?,?, 'Администратор',?,'admin')").bind(id,email,configuredAdminHash).run();admin={id,email,username:"Администратор",role:"admin"};}
   else{await env.DB.prepare("UPDATE users SET role='admin' WHERE id=?").bind(admin.id).run();admin.role="admin";}
-  const token=await createSession(admin.id,env);return json({user:viewUser(admin,env)},200,{"set-cookie":setCookie(token)});
+  admin.level=6;const enrolled=await env.DB.prepare("SELECT user_id FROM admin_totp WHERE user_id=?").bind(admin.id).first(),challenge=await createMfaChallenge(admin,enrolled?"verify":"enroll",env);return json({twoFactorRequired:true,enrollmentRequired:!enrolled},200,{"set-cookie":setMfaCookie(challenge)});
  }
  if(path==="admin/users"&&method==="GET"){
   const user=await currentUser(request,env);if(!isOwner(user,env))return fail("Только владелец может управлять администраторами",403);
