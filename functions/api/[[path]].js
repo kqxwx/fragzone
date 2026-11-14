@@ -77,7 +77,7 @@ async function handle(request,env){
   const passwordCheck=await verifyPassword(password,user.password_hash);
   if(passwordCheck==="legacy")return fail("Для этого аккаунта требуется восстановление пароля: сохранённый хеш использует старый формат, несовместимый с бесплатным тарифом Cloudflare.",409);
   if(passwordCheck!==true)return fail("Неверный email или пароль",401);
-  const token=await createSession(user.id,env);return json({user:viewUser(user,env)},200,{"set-cookie":setCookie(token)});
+  const staff=await env.DB.prepare("SELECT level FROM admin_roles WHERE user_id=?").bind(user.id).first();user.level=staff?.level??(user.role==="admin"?4:0);const token=await createSession(user.id,env);return json({user:viewUser(user,env)},200,{"set-cookie":setCookie(token)});
  }
  if(path==="auth/logout"&&method==="POST"){const token=getCookie(request);if(token)await env.DB.prepare("DELETE FROM sessions WHERE token_hash=?").bind(await sha256(token)).run();return json({ok:true},200,{"set-cookie":setCookie("",0)});}
  if(path==="tickets"&&method==="POST"){
