@@ -21,7 +21,6 @@ export async function onRequest({request,env,next}){
   return maintenancePage(values.maintenance_message);
  }catch(error){
   // Never let an unavailable or unmigrated settings table take down every Pages request.
-  console.error("FRAGZONE_MAINTENANCE_CHECK_FAILED",{name:error?.name||"Error",message:String(error?.message||"Unknown error")});
   return next();
  }
 }
