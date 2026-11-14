@@ -264,6 +264,11 @@ async function handle(request,env){
   const rows=await env.DB.prepare("SELECT l.*,u.username AS actor_username FROM audit_logs l LEFT JOIN users u ON u.id=l.actor_id ORDER BY l.created_at DESC LIMIT 500").all();
   return json({logs:rows.results});
  }
+ if(path==="site/announcement"&&method==="GET"){
+  const rows=await env.DB.prepare("SELECT key,value FROM site_settings WHERE key IN ('announcement','announcement_enabled')").all();
+  const settings=Object.fromEntries(rows.results.map(x=>[x.key,x.value]));
+  return json({enabled:settings.announcement_enabled==="true",text:settings.announcement||""});
+ }
  if(path==="admin/settings"&&method==="GET"){
   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);
   const rows=await env.DB.prepare("SELECT key,value,updated_at FROM site_settings ORDER BY key").all();return json({settings:rows.results});
