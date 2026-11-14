@@ -48,8 +48,8 @@ async function createSession(userId,env){
  await env.DB.prepare("INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)").bind(await sha256(token),userId,expires).run();return token;
 }
 function isOwner(user,env){return !!user&&clean(env.ADMIN_EMAIL,254).toLowerCase()===String(user.email||'').toLowerCase();}
-function isAdmin(user,env){return !!user&&(Number(user.level||0)>=1||user.role==="admin"||isOwner(user,env));}
-function staffLevel(user,env){return isOwner(user,env)?6:Number(user?.level||(user?.role==="admin"?4:0));}
+function isAdmin(user,env){return !!user&&staffLevel(user,env)>=1;}
+function staffLevel(user,env){return isOwner(user,env)?6:(user&&user.level!==undefined?Number(user.level):(user?.role==="admin"?4:0));}
 function staffRole(level){return ({0:"user",1:"helper",2:"moderator",3:"senior_moderator",4:"administrator",5:"head_admin",6:"owner"})[level]||"user";}
 function can(user,env,minimum){return staffLevel(user,env)>=minimum;}
 function viewUser(user,env){const owner=isOwner(user,env),level=staffLevel(user,env);return{id:user.id,email:user.email,username:user.username,role:owner?'owner':(level?staffRole(level):'user'),level,isOwner:owner};}
