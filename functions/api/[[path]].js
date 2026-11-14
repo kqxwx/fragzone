@@ -5,6 +5,35 @@ const SESSION_DAYS = 14;
 const PBKDF2_ITERATIONS = 100000;
 const MAX_BODY = 20000;
 const guestTicketRate = new Map();
+let schemaReadyPromise;
+
+async function ensureSchema(db) {
+ if(!schemaReadyPromise) schemaReadyPromise=(async()=>{
+  const statements=[
+   "CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY,email TEXT NOT NULL UNIQUE COLLATE NOCASE,username TEXT NOT NULL,password_hash TEXT NOT NULL,role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('user','admin')),created_at TEXT NOT NULL DEFAULT (datetime('now')))",
+   "CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,expires_at TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT (datetime('now')))",
+   "CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at)",
+   "CREATE TABLE IF NOT EXISTS tickets (id TEXT PRIMARY KEY,user_id TEXT REFERENCES users(id) ON DELETE SET NULL,guest_name TEXT,guest_email TEXT,access_hash TEXT,subject TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','in_progress','answered','closed')),priority TEXT NOT NULL DEFAULT 'normal' CHECK(priority IN ('low','normal','high','urgent')),created_at TEXT NOT NULL DEFAULT (datetime('now')),updated_at TEXT NOT NULL DEFAULT (datetime('now')))",
+   "CREATE INDEX IF NOT EXISTS idx_tickets_user ON tickets(user_id)",
+   "CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status,updated_at)",
+   "CREATE TABLE IF NOT EXISTS comments (id TEXT PRIMARY KEY,ticket_id TEXT NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,user_id TEXT REFERENCES users(id) ON DELETE SET NULL,author_name TEXT NOT NULL,body TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT (datetime('now')))",
+   "CREATE INDEX IF NOT EXISTS idx_comments_ticket ON comments(ticket_id,created_at)",
+   "CREATE TABLE IF NOT EXISTS admin_roles (user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,level INTEGER NOT NULL CHECK(level BETWEEN 0 AND 5),updated_by TEXT REFERENCES users(id) ON DELETE SET NULL,updated_at TEXT NOT NULL DEFAULT (datetime('now')))",
+   "INSERT OR IGNORE INTO admin_roles(user_id,level) SELECT id,4 FROM users WHERE role='admin'",
+   "CREATE TABLE IF NOT EXISTS punishments (id TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,actor_id TEXT REFERENCES users(id) ON DELETE SET NULL,type TEXT NOT NULL CHECK(type IN ('warn','ban','mute')),reason TEXT NOT NULL,expires_at TEXT,active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),created_at TEXT NOT NULL DEFAULT (datetime('now')))",
+   "CREATE INDEX IF NOT EXISTS idx_punishments_user ON punishments(user_id,active,created_at)",
+   "CREATE TABLE IF NOT EXISTS audit_logs (id TEXT PRIMARY KEY,actor_id TEXT REFERENCES users(id) ON DELETE SET NULL,action TEXT NOT NULL,target_id TEXT,details TEXT NOT NULL DEFAULT '{}',created_at TEXT NOT NULL DEFAULT (datetime('now')))",
+   "CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at)",
+   "CREATE TABLE IF NOT EXISTS site_settings (key TEXT PRIMARY KEY,value TEXT NOT NULL,updated_by TEXT REFERENCES users(id) ON DELETE SET NULL,updated_at TEXT NOT NULL DEFAULT (datetime('now')))",
+   "CREATE TABLE IF NOT EXISTS ticket_internal_notes (id TEXT PRIMARY KEY,ticket_id TEXT NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,author_id TEXT REFERENCES users(id) ON DELETE SET NULL,note TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT (datetime('now')))",
+   "CREATE INDEX IF NOT EXISTS idx_ticket_notes ON ticket_internal_notes(ticket_id,created_at)"
+  ];
+  for(const sql of statements) await db.prepare(sql).run();
+ })();
+ try { await schemaReadyPromise; }
+ catch(error) { schemaReadyPromise=null; throw error; }
+}
+
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store",...headers}});
@@ -302,7 +331,10 @@ async function handle(request,env){
  return fail("Маршрут не найден",404);
 }
 export async function onRequest({request,env}){
- try{return await handle(request,env);}
+ try{
+  if(env.DB) await ensureSchema(env.DB);
+  return await handle(request,env);
+ }
  catch(error){
   const errorId=crypto.randomUUID();
   const message=String(error?.message||"Unknown error");
