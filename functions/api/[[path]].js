@@ -77,7 +77,7 @@ function validEmail(value){return value.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$
 async function readBody(request){if(Number(request.headers.get("content-length")||0)>MAX_BODY)throw new Error("Слишком большой запрос");return request.json();}
 async function currentUser(request,env){
  const token=getCookie(request);if(!token)return null;
- return env.DB.prepare("SELECT u.id,u.email,u.username,u.role,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN admin_roles ar ON ar.user_id=u.id WHERE s.token_hash=? AND s.expires_at>datetime('now') AND (s.mfa_verified=1 OR (COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END)<1 AND lower(u.email)<>lower(?))) AND NOT EXISTS (SELECT 1 FROM punishments p WHERE p.user_id=u.id AND p.type='ban' AND p.active=1 AND (p.expires_at IS NULL OR p.expires_at>datetime('now')))").bind(await sha256(token),clean(env.ADMIN_EMAIL,254)).first();
+ return env.DB.prepare("SELECT u.id,u.email,u.username,u.role,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN admin_roles ar ON ar.user_id=u.id WHERE s.token_hash=? AND s.expires_at>datetime('now') AND ((s.mfa_verified=1 AND EXISTS (SELECT 1 FROM admin_totp t WHERE t.user_id=u.id)) OR (COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END)<1 AND lower(u.email)<>lower(?))) AND NOT EXISTS (SELECT 1 FROM punishments p WHERE p.user_id=u.id AND p.type='ban' AND p.active=1 AND (p.expires_at IS NULL OR p.expires_at>datetime('now')))").bind(await sha256(token),clean(env.ADMIN_EMAIL,254)).first();
 }
 async function isMuted(userId,env){if(!userId)return false;const row=await env.DB.prepare("SELECT id FROM punishments WHERE user_id=? AND type='mute' AND active=1 AND (expires_at IS NULL OR expires_at > datetime('now')) LIMIT 1").bind(userId).first();return !!row;}
 async function createSession(userId,env){
@@ -264,6 +264,7 @@ async function handle(request,env){
   const target=await env.DB.prepare("SELECT id,email,username FROM users WHERE email=?").bind(email).first();
   if(!target)return fail("Пользователь с таким email не найден. Сначала он должен зарегистрироваться.",404);
   await env.DB.prepare("UPDATE users SET role=? WHERE id=?").bind(role,target.id).run();await env.DB.prepare("INSERT INTO admin_roles(user_id,level,updated_by,updated_at) VALUES(?,?,?,datetime('now')) ON CONFLICT(user_id) DO UPDATE SET level=excluded.level,updated_by=excluded.updated_by,updated_at=datetime('now')").bind(target.id,role==="admin"?4:0,actor.id).run();
+  await env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(target.id).run();
   return json({ok:true,user:{id:target.id,email:target.email,username:target.username,role}});
  }
  const adminUser=path.match(new RegExp("^admin/users/([0-9a-f-]{36})$","i"));
@@ -275,6 +276,7 @@ async function handle(request,env){
   if(!target)return fail("Пользователь не найден",404);
   if(String(target.email).toLowerCase()===clean(env.ADMIN_EMAIL,254).toLowerCase())return fail("Нельзя изменить роль владельца",403);
   await env.DB.prepare("UPDATE users SET role=? WHERE id=?").bind(role,target.id).run();await env.DB.prepare("INSERT INTO admin_roles(user_id,level,updated_by,updated_at) VALUES(?,?,?,datetime('now')) ON CONFLICT(user_id) DO UPDATE SET level=excluded.level,updated_by=excluded.updated_by,updated_at=datetime('now')").bind(target.id,role==="admin"?4:0,actor.id).run();
+  await env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(target.id).run();
   return json({ok:true,user:{id:target.id,email:target.email,role}});
  }
  if(path==="admin/tickets"&&method==="GET"){
@@ -318,7 +320,8 @@ async function handle(request,env){
   const target=await env.DB.prepare("SELECT id,email FROM users WHERE id=?").bind(staffMatch[1]).first();
   if(!target)return fail("Пользователь не найден",404);
   if(String(target.email).toLowerCase()===clean(env.ADMIN_EMAIL,254).toLowerCase())return fail("Нельзя изменить владельца",403);
-  await env.DB.prepare("INSERT INTO admin_roles(user_id,level,updated_by,updated_at) VALUES(?,?,?,datetime('now')) ON CONFLICT(user_id) DO UPDATE SET level=excluded.level,updated_by=excluded.updated_by,updated_at=datetime('now')").bind(target.id,level,actor.id).run();
+  await env.DB.prepare("INSERT INTO admin_roles(user_id,level,updated_by,updated_at) VALUES(?,?,?,datetime('now')) ON CONFLICT(user_id) DO UPDATE SET level=excluded.level,updated_by=excluded.updated_by,updated_at=datetime('now')") .bind(target.id,level,actor.id).run();
+  await env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(target.id).run();
   await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"staff.level",target.id,JSON.stringify({level})).run();
   return json({ok:true,level,role:staffRole(level)});
  }
