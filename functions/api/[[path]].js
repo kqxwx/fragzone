@@ -321,7 +321,7 @@ async function handle(request,env){
   return json({punishments:rows.results});
  }
  if(path==="admin/punishments"&&method==="POST"){
-  const actor=await currentUser(request,env);if(!isAdmin(actor,env))return fail("Требуется доступ администрации",403);
+  const actor=await currentUser(request,env);if(!isAdmin(actor,env))return fail("Требуется доступ администрации",403);if(isOwner(actor,env)&&!await requireOwnerFresh(request,env))return fail("STEP_UP_REQUIRED",428);
   const body=await readBody(request),type=clean(body.type,12),userId=clean(body.userId,64),reason=clean(body.reason,500);
   if(!["warn","ban","mute"].includes(type)||!userId||reason.length<3)return fail("Укажите тип наказания, пользователя и причину");
   const required=type==="warn"?5:type==="ban"?4:2;
@@ -338,7 +338,7 @@ async function handle(request,env){
  }
  const punishmentMatch=path.match(/^admin\/punishments\/([0-9a-f-]{36})$/i);
  if(punishmentMatch&&method==="PATCH"){
-  const actor=await currentUser(request,env);if(!can(actor,env,5))return fail("Нужен уровень 5 или владелец",403);
+  const actor=await currentUser(request,env);if(!can(actor,env,5))return fail("Нужен уровень 5 или владелец",403);if(isOwner(actor,env)&&!await requireOwnerFresh(request,env))return fail("STEP_UP_REQUIRED",428);
   const body=await readBody(request),active=body.active===true?1:body.active===false?0:null;
   if(active===null)return fail("Укажите active: true или false");
   await env.DB.prepare("UPDATE punishments SET active=? WHERE id=?").bind(active,punishmentMatch[1]).run();
