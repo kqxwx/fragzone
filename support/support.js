@@ -137,6 +137,12 @@ async function admin(){
   if(!me.user||Number(me.user.level||0)<1&&! ["admin","owner","helper","moderator","senior_moderator","administrator","head_admin"].includes(me.user.role)){login.hidden=false;panel.hidden=true;return;}
   login.hidden=true;panel.hidden=false;
   $("#adminWelcome").textContent=(me.user.isOwner?"Владелец FRAGZONE":"Уровень "+(me.user.level||4)+" · "+me.user.role)+" · "+me.user.username+" · "+me.user.email;
+  const staffLevel=me.user.isOwner?6:Number(me.user.level||4);
+  const staffTitles={1:"Панель поддержки",2:"Панель модератора",3:"Старший модератор",4:"Панель администратора",5:"Head Administrator",6:"OWNER Control"};
+  document.body.dataset.staffLevel=String(staffLevel);
+  $("#adminPanel").dataset.staffRole=staffLevel===6?"owner":"level-"+staffLevel;
+  const panelTitle=$("#adminPanel .fz-admin-hero h1");
+  if(panelTitle)panelTitle.textContent=staffTitles[staffLevel]||"Панель персонала";
   $("#teamPanel").hidden=!me.user.isOwner;if($("#ownerPanelLink"))$("#ownerPanelLink").hidden=!me.user.isOwner;
   await loadTickets();
   if(me.user.isOwner)await loadUsers();
