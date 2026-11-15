@@ -34,6 +34,27 @@ header{border-color:#ffffff16}
 .grid .card:nth-child(2){animation-delay:.08s}.grid .card:nth-child(3){animation-delay:.16s}
 @media(prefers-reduced-motion:reduce){.hero,.grid .card,.columns .section,.side-stack .card{animation:none!important}}
 
+
+/* AFTERBURN // player account */
+:root{--bg:#080a12;--panel:#111525;--panel2:#1a2035;--line:#ffffff1b;--text:#f4f5ff;--muted:#9aa4bf;--green:#d5ff45;--red:#ff637d;--blue:#64dcff}
+body{background:radial-gradient(ellipse at 85% 0%,#5535a52b,transparent 36%),radial-gradient(ellipse at 0% 55%,#1d83a51b,transparent 35%),#080a12}
+.nav-link,.btn{background:#171d31;border-color:#ffffff1c;border-radius:12px}
+.nav-link.admin{background:#9a72ff18;border-color:#9a72ff65;color:#c7b5ff}
+.hero{background:radial-gradient(ellipse at 88% 20%,#9a72ff38,transparent 36%),radial-gradient(ellipse at 100% 100%,#d5ff4520,transparent 35%),linear-gradient(120deg,#1b2340,#17172f);border:1px solid #ffffff20;border-radius:26px;box-shadow:0 26px 75px #0005}
+.hero h1{font-size:clamp(38px,5vw,58px);letter-spacing:-2px;font-weight:950}
+.role-pill{background:#d5ff4512;border-color:#d5ff4555;color:var(--green)}
+.card{background:linear-gradient(145deg,#1b2239,#111626);border-color:#ffffff1b;border-radius:18px;box-shadow:0 16px 42px #0003}
+.card-value{font-size:29px;letter-spacing:-1.2px}
+.ticket-list{background:#111525;border-color:#ffffff1c;border-radius:18px}
+.ticket{border-color:#ffffff12}
+.pill{background:#d5ff4512;border-color:#d5ff4555;color:var(--green)}
+.pill.closed{background:#ffffff0b;border-color:#ffffff24;color:#c0c8dc}
+.avatar,.account-avatar{background:linear-gradient(135deg,#d5ff45,#64dcff);color:#101522}
+.quick-links a,.account-item{background:#0e1425;border-color:#ffffff1c;border-radius:12px}
+.quick-links a:hover,.account-item.current{border-color:#9a72ff80;background:#1b2340}
+.btn.primary{background:linear-gradient(100deg,#d5ff45,#baf04a);color:#10140a;box-shadow:0 8px 25px #d5ff4525}
+@media(prefers-reduced-motion:reduce){.hero,.grid .card,.columns .section,.side-stack .card{animation:none!important}}
+
 </style></head>
 <body><div class="wrap" id="accountApp" hidden>
 <header><a class="logo" href="/">FRAG<span>ZONE</span></a><nav><a class="nav-link" href="/">Каталог серверов</a><a class="nav-link" href="/support/">Поддержка</a><a class="nav-link admin" id="adminLink" href="/support/admin.html" hidden>⚙ Админ-панель</a><button class="btn" id="logout">Выйти ↗</button></nav></header>
