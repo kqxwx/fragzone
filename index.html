@@ -750,6 +750,32 @@ footer a{color:var(--fz-lime)}
 @media(max-width:420px){.popular-games{grid-template-columns:1fr}.hero h1{font-size:42px}.hero-buttons{display:grid}.hero-buttons button{width:100%}}
 @media(prefers-reduced-motion:reduce){.hero:before{animation:none!important}}
 
+
+/* FRAGZONE // OVERDRIVE visual system */
+:root{--bg:#070810;--panel:#101221;--panel2:#171a2d;--line:#ffffff18;--text:#f4f3ff;--muted:#9295ad;--green:#d9ff3f;--red:#ff5578;--violet:#9b6cff;--cyan:#53e3ff}
+html{scroll-behavior:smooth}body{background:radial-gradient(ellipse at 78% 5%,#5d2fa52b,transparent 31%),radial-gradient(ellipse at 40% 100%,#173c6530,transparent 38%),#070810;color:var(--text)}
+body:before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.13;background-image:linear-gradient(#aab2ff12 1px,transparent 1px),linear-gradient(90deg,#aab2ff12 1px,transparent 1px);background-size:42px 42px;mask-image:linear-gradient(to bottom,#000,transparent 85%)}
+.sidebar{background:#090b15eF;border-color:#ffffff14;backdrop-filter:blur(22px);padding:27px 16px;gap:30px}
+.logo{font-size:27px;letter-spacing:-1.5px;padding:4px 12px}.logo span{color:var(--green);text-shadow:0 0 24px #d9ff3f65}
+.side-title{color:#777b9c;letter-spacing:2.5px;font-weight:800}.nav{gap:6px}.nav button{padding:12px;border:1px solid transparent;border-radius:11px;color:#a5a7bf;transition:.2s}.nav button:hover,.nav button.active{background:linear-gradient(100deg,#a16cff22,#53e3ff0b);border-color:#a16cff45;color:#e3d6ff;box-shadow:inset 3px 0 var(--violet),0 8px 25px #0003}
+.nav-icon{font-size:17px}.sidebar-bottom{background:linear-gradient(145deg,#211a39,#111a2b);border:1px solid #9b6cff55;border-radius:16px;box-shadow:0 15px 40px #0005;padding:17px}.sidebar-bottom p{color:#b8b5ce}.sidebar-bottom button{background:var(--green);border-radius:10px;box-shadow:0 0 25px #d9ff3f2b}
+.topbar{background:#090b15d9;border-color:#ffffff14;backdrop-filter:blur(20px);padding:13px clamp(16px,3vw,38px)}
+.breadcrumb{color:#9295ad}.site-url,.lang,.top-button{background:#17192b;border-color:#ffffff1c;border-radius:11px;color:#eee}.site-url{color:var(--green)}.site-url:hover,.top-button:hover{border-color:var(--violet);box-shadow:0 0 20px #9b6cff22}
+.content{padding:clamp(18px,3vw,42px);max-width:1600px}
+.hero{min-height:300px;display:flex;align-items:center;border:1px solid #a16cff50;border-radius:25px;padding:clamp(25px,4vw,52px);background:radial-gradient(circle at 82% 45%,#a16cff3b,transparent 24%),radial-gradient(circle at 95% 85%,#53e3ff20,transparent 30%),linear-gradient(115deg,#19162d 0%,#15182a 48%,#101c2b 100%);box-shadow:0 28px 85px #0007,inset 0 1px #ffffff15}
+.hero:before{content:"";position:absolute;width:310px;height:310px;right:9%;top:50%;transform:translateY(-50%);border-radius:50%;border:1px solid #a16cff55;box-shadow:0 0 0 25px #a16cff0b,0 0 0 55px #53e3ff08,0 0 90px #9b6cff30;pointer-events:none}
+.hero:after{content:"FZ";right:12%;top:50%;transform:translateY(-55%);font-size:clamp(110px,18vw,220px);font-style:italic;letter-spacing:-20px;color:#ffffff0b;text-shadow:0 0 70px #9b6cff35}
+.hero-inner{max-width:690px}.eyebrow{color:var(--green);letter-spacing:3.4px}.hero h1{font-size:clamp(36px,5.5vw,66px);line-height:.98;letter-spacing:-3px;font-weight:950;max-width:660px;text-wrap:balance}.hero p{max-width:570px;color:#b8bad0;font-size:14px;line-height:1.8}
+.primary,.secondary{border-radius:11px;padding:13px 19px;transition:transform .2s,box-shadow .2s}.primary{background:var(--green);box-shadow:0 8px 28px #d9ff3f26;color:#10120b}.primary:hover,.secondary:hover{transform:translateY(-2px)}.secondary{background:#ffffff0b;border-color:#ffffff2a;backdrop-filter:blur(8px)}
+.stats{gap:13px;margin:18px 0 35px}.stat{position:relative;overflow:hidden;background:linear-gradient(145deg,#191b30,#101321);border:1px solid #ffffff18;border-radius:17px;padding:19px;box-shadow:0 15px 40px #0003}.stat:after{content:"";position:absolute;width:90px;height:90px;right:-35px;bottom:-45px;border-radius:50%;background:#9b6cff20;filter:blur(4px)}.stat-head{color:#a5a6bd;font-weight:700}.stat-icon{color:var(--green)}.stat-value{font-size:31px;letter-spacing:-1.5px}
+h2,h3{letter-spacing:-.7px}
+input,select{background:#0d1020!important;color:#f4f3ff!important;border:1px solid #ffffff20!important;border-radius:11px!important;padding:12px 14px!important}input:focus,select:focus{outline:none;border-color:#9b6cff!important;box-shadow:0 0 0 3px #9b6cff22!important}
+table{border-collapse:separate!important;border-spacing:0 7px!important}thead th{color:#8589a7!important;font-size:10px!important;letter-spacing:1.5px;text-transform:uppercase}tbody tr{background:#121528!important;transition:transform .18s,background .18s}tbody tr:hover{background:#1b1c34!important;transform:translateY(-1px)}tbody td{border-top:1px solid #ffffff12!important;border-bottom:1px solid #ffffff12!important;padding:14px 12px!important}tbody td:first-child{border-left:1px solid #ffffff12!important;border-radius:12px 0 0 12px}tbody td:last-child{border-right:1px solid #ffffff12!important;border-radius:0 12px 12px 0}
+button{transition:filter .18s,transform .18s}button:hover{filter:brightness(1.12)}button:focus-visible,a:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+@media(max-width:900px){.sidebar{width:205px}.content{padding:18px}.hero:before{right:-7%;opacity:.55}.hero:after{right:0}}
+@media(max-width:650px){.app{display:block}.sidebar{width:auto;min-height:auto;padding:12px 14px;border-right:0;border-bottom:1px solid var(--line);gap:10px}.sidebar-bottom{display:none}.nav{display:flex;overflow:auto;gap:5px}.nav button{width:auto;white-space:nowrap;padding:9px}.side-title{display:none}.logo{font-size:22px}.topbar{position:relative;padding:12px 15px}.content{padding:14px}.hero{min-height:280px;padding:25px 20px}.hero:before{width:190px;height:190px;right:-65px;top:74%;opacity:.5}.hero:after{right:-8%;top:68%;font-size:120px}.hero h1{font-size:39px;letter-spacing:-2px}.stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.stat{padding:13px}.stat-value{font-size:24px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important;animation:none!important}}
+
 </style>
 </head>
 
