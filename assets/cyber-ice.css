@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=DM+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 :root{color-scheme:dark;--ice-bg:#10110f;--ice-surface:#191b18;--ice-surface-2:#22251f;--ice-line:#393d34;--ice-text:#f2f0e8;--ice-muted:#a3a596;--ice-cyan:#ff6538;--ice-blue:#ff9a55;--ice-lilac:#d8c7a5;--ice-lime:#d6f36a;--ice-danger:#ff5d62;--ice-radius:4px}
 html[data-theme="light"]{color-scheme:light;--ice-bg:#e9e6dc;--ice-surface:#f5f2e9;--ice-surface-2:#e4e0d4;--ice-line:#c9c3b5;--ice-text:#171914;--ice-muted:#686b60;--ice-cyan:#d84620;--ice-blue:#a43e24;--ice-lilac:#745b3f;--ice-lime:#526d1c;--ice-danger:#bd2832}
 html,body{min-height:100%;background:var(--ice-bg);color:var(--ice-text);font-family:'DM Sans',Arial,sans-serif}
@@ -69,7 +69,6 @@ footer{color:var(--ice-muted)!important;border-color:var(--ice-line)!important}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
 
 /* PURPLE / LAVENDER — clean rounded redesign */
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 :root{--ice-bg:#100d18;--ice-surface:#191426;--ice-surface-2:#241c35;--ice-line:#382b50;--ice-text:#f7f2ff;--ice-muted:#b5a9c8;--ice-cyan:#a78bfa;--ice-blue:#d8b4fe;--ice-lilac:#c4b5fd;--ice-lime:#e9d5ff;--ice-danger:#fb7185;--ice-radius:16px}
 html[data-theme="light"]{--ice-bg:#f7f4fc;--ice-surface:#fff;--ice-surface-2:#f0eafb;--ice-line:#e2d8f0;--ice-text:#241a35;--ice-muted:#766987;--ice-cyan:#7c3aed;--ice-blue:#a855f7;--ice-lilac:#8b5cf6;--ice-lime:#6d28d9;--ice-danger:#e11d48}
 html,body{font-family:'Manrope',Arial,sans-serif;background:var(--ice-bg);color:var(--ice-text)}
