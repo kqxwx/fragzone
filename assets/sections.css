@@ -9,3 +9,21 @@
 .section-wrap footer{font-size:9px;letter-spacing:1.5px;font-weight:800}
 @media(max-width:760px){.section-wrap{width:calc(100% - 24px);margin:18px auto 45px}.section-hero{min-height:340px;padding:25px}.section-hero:before{right:-80px;top:22%;width:180px;opacity:.3}.section-hero h1{font-size:clamp(51px,13vw,70px)}.section-grid{grid-template-columns:1fr;gap:10px}.section-card{min-height:0;padding:19px}}
 @media(prefers-reduced-motion:reduce){.section-card{transition:none}}
+
+/* PURPLE / LAVENDER section pages */
+.section-wrap{font-family:'Manrope',Arial,sans-serif}
+.section-back a{border-radius:11px;background:var(--ice-surface);color:var(--ice-blue)}
+.section-hero{border-radius:18px;background:linear-gradient(135deg,var(--ice-surface),var(--ice-surface-2));box-shadow:0 18px 55px #08051033}
+.section-hero:before{right:7%;width:clamp(170px,22vw,270px);border-radius:38%;transform:translateY(-50%) rotate(18deg);border:1px solid color-mix(in srgb,var(--ice-cyan) 50%,transparent);background:radial-gradient(circle at 30% 30%,color-mix(in srgb,var(--ice-blue) 35%,transparent),transparent 60%);box-shadow:0 0 80px color-mix(in srgb,var(--ice-cyan) 20%,transparent)}
+.section-hero:after{display:none}
+.section-hero h1{font:800 clamp(42px,6.5vw,76px)/1.02 'Manrope',sans-serif;letter-spacing:-.06em;text-transform:none}
+.section-hero p{font-size:14px;line-height:1.8}
+.section-kicker{color:var(--ice-blue);letter-spacing:1.8px}
+.section-actions a{border-radius:12px;background:linear-gradient(135deg,var(--ice-cyan),var(--ice-blue));color:#1b102b;text-transform:none;letter-spacing:0}
+.section-grid{gap:14px}
+.section-card{border-radius:15px;background:var(--ice-surface);box-shadow:0 8px 24px #08051022}
+.section-card:hover{border-color:var(--ice-cyan);transform:translateY(-3px);box-shadow:0 14px 30px #08051033}
+.section-icon{border-radius:12px;background:var(--ice-surface-2);color:var(--ice-blue)}
+.section-card h2{text-transform:none;font:800 21px 'Manrope',sans-serif;letter-spacing:-.03em}
+.section-status{border-radius:999px;background:color-mix(in srgb,var(--ice-cyan) 14%,var(--ice-surface));color:var(--ice-blue)}
+@media(max-width:760px){.section-hero{border-radius:16px}.section-hero:before{right:-75px;top:22%;width:170px}.section-hero h1{font-size:clamp(40px,11vw,60px)}}
