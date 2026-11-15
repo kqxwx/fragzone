@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#080b10">
+<meta name="theme-color" content="#080914">
 <link rel="icon" type="image/svg+xml" href="/assets/fragzone-icon.svg">
 <title>FRAGZONE — Game Server Browser</title>
 <meta name="description" content="FRAGZONE — каталог игровых серверов с онлайн-мониторингом.">
@@ -572,6 +572,148 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
  html{scroll-behavior:auto}
  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
 }
+
+/* FRAGZONE VISUAL REFRESH — violet / ice */
+:root {
+  --bg:#080914;
+  --panel:#111326;
+  --panel2:#191c35;
+  --line:#292d4c;
+  --text:#f4f4ff;
+  --muted:#969bb9;
+  --green:#a78bfa;
+  --red:#fb7185;
+  color-scheme:dark;
+}
+html { scroll-behavior:smooth; }
+body {
+  background:
+    radial-gradient(ellipse at 78% 0%,rgba(92,75,190,.17),transparent 34rem),
+    radial-gradient(ellipse at 8% 48%,rgba(34,211,238,.07),transparent 30rem),
+    var(--bg);
+  color:var(--text);
+}
+.sidebar {
+  background:rgba(10,11,27,.94);
+  border-right-color:rgba(167,139,250,.18);
+  box-shadow:12px 0 45px rgba(0,0,0,.16);
+}
+.logo { letter-spacing:1.8px; }
+.logo span { color:#a78bfa; text-shadow:0 0 22px rgba(167,139,250,.55); }
+.side-title { color:#777da5; }
+.nav button { transition:background .2s ease,color .2s ease,transform .2s ease; }
+.nav button:hover,.nav button.active {
+  background:linear-gradient(100deg,rgba(139,92,246,.2),rgba(34,211,238,.07));
+  color:#c4b5fd;
+  box-shadow:inset 2px 0 #a78bfa;
+}
+.sidebar-bottom {
+  background:linear-gradient(145deg,#1b1b3c,#13283a);
+  border:1px solid rgba(167,139,250,.28);
+  box-shadow:0 12px 34px rgba(0,0,0,.2);
+}
+.sidebar-bottom p { color:#b9bdd8; }
+.sidebar-bottom button,.primary {
+  color:#0c0b1a;
+  background:linear-gradient(110deg,#c4b5fd,#67e8f9);
+  box-shadow:0 7px 24px rgba(139,92,246,.22);
+  transition:transform .2s ease,filter .2s ease,box-shadow .2s ease;
+}
+.sidebar-bottom button:hover,.primary:hover {
+  transform:translateY(-2px);
+  filter:brightness(1.08);
+  box-shadow:0 10px 30px rgba(139,92,246,.34);
+}
+.topbar {
+  background:rgba(10,11,27,.84);
+  border-bottom-color:rgba(167,139,250,.16);
+  backdrop-filter:blur(18px);
+}
+.site-url,.lang,.top-button {
+  background:#15172e;
+  border-color:#303455;
+  color:#c4b5fd;
+}
+.site-url:hover,.top-button:hover { border-color:#a78bfa; }
+.content { max-width:1580px; }
+.hero {
+  border:1px solid rgba(167,139,250,.32);
+  border-radius:22px;
+  background:
+    radial-gradient(ellipse at 82% 18%,rgba(34,211,238,.2),transparent 28rem),
+    radial-gradient(ellipse at 10% 100%,rgba(139,92,246,.26),transparent 30rem),
+    linear-gradient(115deg,#17152f 0%,#151b34 55%,#102b3b 100%);
+  box-shadow:0 24px 70px rgba(0,0,0,.25),inset 0 1px rgba(255,255,255,.04);
+}
+.hero:after { color:rgba(198,190,255,.055); }
+.eyebrow { color:#67e8f9; }
+.hero h1 { letter-spacing:-1.7px; }
+.hero p { color:#c2c6df; }
+.secondary {
+  background:rgba(255,255,255,.055);
+  border:1px solid rgba(196,181,253,.25);
+  transition:background .2s ease,border-color .2s ease;
+}
+.secondary:hover { background:rgba(167,139,250,.12);border-color:#a78bfa; }
+.stat,.popular-game,.server-card,.account-panel,.panel,.modal-content {
+  background:linear-gradient(145deg,rgba(20,22,47,.96),rgba(15,25,43,.96));
+  border-color:rgba(151,157,210,.18);
+  box-shadow:0 12px 32px rgba(0,0,0,.12);
+}
+.stat { transition:transform .2s ease,border-color .2s ease; }
+.stat:hover { transform:translateY(-3px);border-color:rgba(167,139,250,.5); }
+.stat-icon { color:#67e8f9; }
+.stat-value { letter-spacing:-1px; }
+.section-head h2 { letter-spacing:-.5px; }
+.section-head small { color:#8c92b8; }
+.popular-game,.server-card { transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease; }
+.popular-game:hover,.server-card:hover {
+  transform:translateY(-3px);
+  border-color:rgba(103,232,249,.42);
+  box-shadow:0 14px 36px rgba(4,8,25,.32);
+}
+input,select,textarea {
+  background:#101329 !important;
+  color:#f4f4ff !important;
+  border-color:#303455 !important;
+}
+input:focus,select:focus,textarea:focus {
+  outline:none;
+  border-color:#a78bfa !important;
+  box-shadow:0 0 0 3px rgba(167,139,250,.14) !important;
+}
+table { border-color:rgba(151,157,210,.18); }
+thead,th { background:#171a34; color:#b9bce0; }
+tbody tr { border-color:rgba(151,157,210,.12);transition:background .18s ease; }
+tbody tr:hover { background:rgba(167,139,250,.055); }
+.project-tag.cyber { background:rgba(103,232,249,.1);color:#67e8f9;border-color:rgba(103,232,249,.25); }
+.project-tag.fear { background:rgba(167,139,250,.12);color:#c4b5fd;border-color:rgba(167,139,250,.28); }
+.online { color:#5eead4; }
+.status-dot { box-shadow:0 0 10px currentColor; }
+.actions button { transition:transform .18s ease,background .18s ease; }
+.actions button:hover { transform:translateY(-2px);background:rgba(167,139,250,.16); }
+button:focus-visible,a:focus-visible { outline:2px solid #67e8f9;outline-offset:3px; }
+a { text-underline-offset:3px; }
+@media (max-width:900px) {
+  .sidebar { width:210px; }
+  .content { padding:22px 18px; }
+  .topbar { padding:12px 18px; }
+}
+@media (max-width:700px) {
+  .app { display:block; }
+  .sidebar { width:100%;padding:12px 14px;gap:12px;border-right:0;border-bottom:1px solid var(--line); }
+  .sidebar-bottom { display:none; }
+  .nav { display:flex;flex-wrap:wrap; }
+  .nav button { width:auto;flex:1 1 auto;justify-content:center;padding:9px 10px; }
+  .topbar { position:relative;min-height:58px; }
+  .content { padding:16px 12px; }
+  .hero { padding:25px 20px;border-radius:17px; }
+  .stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (prefers-reduced-motion:reduce) {
+  *,*::before,*::after { scroll-behavior:auto !important;transition:none !important;animation:none !important; }
+}
+
 </style>
 </head>
 
