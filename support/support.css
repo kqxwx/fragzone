@@ -39,3 +39,38 @@ input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-vis
 #guestResult a{color:var(--green);font-weight:800}
 .fz-admin-ticket .fz-ticket-controls{align-items:center}
 @media(max-width:650px){.fz-ticket-actions{flex-direction:column}.fz-ticket-actions .fz-btn{width:100%}}
+
+
+/* FRAGZONE NEXT GEN — shared support and staff visual system */
+:root{--bg:#080a12;--panel:#111522;--panel2:#191f31;--line:#2b3247;--text:#f4f6ff;--muted:#9aa3bb;--green:#c8ff38;--red:#ff637d;--fz-blue:#5b8cff}
+body{background:radial-gradient(ellipse at 88% 0%,#1c2b50 0,transparent 32%),radial-gradient(ellipse at 0% 60%,#211936 0,transparent 28%),#080a12;color:var(--text)}
+body:before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.14;background-image:radial-gradient(#bdcaff .6px,transparent .6px);background-size:24px 24px}
+.fz-wrap{max-width:1080px;margin:clamp(20px,4vw,52px) auto}
+.fz-head{padding:13px 0 18px;border-bottom:1px solid #ffffff12}
+.fz-head a,.fz-link{color:var(--green)}
+.fz-panel{background:linear-gradient(145deg,#171e30ed,#101522ed);border:1px solid #ffffff18;border-radius:20px;padding:clamp(18px,3vw,28px);box-shadow:0 18px 55px #0003;backdrop-filter:blur(14px)}
+.fz-panel h1,.fz-panel h2{letter-spacing:-.8px}
+input,textarea,select{background:#0c1220;border-color:#ffffff1b;border-radius:12px;color:var(--text)}
+input:focus,textarea:focus,select:focus{border-color:var(--green);box-shadow:0 0 0 3px #c8ff3817}
+.fz-btn{background:var(--green);color:#11150a;border-radius:12px;box-shadow:0 8px 26px #c8ff3825}
+.fz-btn-ghost{background:#ffffff08;color:#dce4ff;border:1px solid #ffffff20;box-shadow:none}
+.fz-ticket,.fz-admin-ticket,.fz-user-row{background:#0f1524;border-color:#ffffff16;border-radius:14px}
+.fz-ticket:hover,.fz-admin-ticket:hover,.fz-user-row:hover{border-color:#c8ff3870;box-shadow:0 12px 34px #0004}
+.fz-stat,.fz-stat:nth-child(2n){background:linear-gradient(145deg,#1c2740,#121827);border-color:#ffffff17;border-radius:17px}
+.fz-stat strong{letter-spacing:-1px}
+.fz-eyebrow,.fz-head-label{color:var(--green)}
+.fz-head-label{border-color:#c8ff3840;background:#c8ff3810}
+.fz-owner-badge{background:#c8ff3815;color:var(--green);border-color:#c8ff3855}
+.fz-admin-badge{background:#5b8cff19;color:#9bb8ff;border-color:#5b8cff55}
+.notice{background:#c8ff380b;border-color:#c8ff3860;border-radius:12px}
+.fz-empty{border-color:#ffffff24;border-radius:14px}
+.fz-admin-hero h1{font-size:clamp(34px,5vw,54px);letter-spacing:-1.8px}
+.fz-admin-section-head h2{font-size:24px}
+.fz-admin-toolbar input,.fz-admin-toolbar select{border-radius:12px}
+.fz-user-role select,.fz-ticket-controls select{background:#0c1220}
+.fz-admin-footer{border-top:1px solid #ffffff10;margin-top:22px}
+@keyframes fz-panel-pop{from{opacity:0;transform:translateY(18px) scale(.99);filter:blur(4px)}to{opacity:1;transform:none;filter:blur(0)}}
+.fz-panel{animation:fz-panel-pop .55s cubic-bezier(.2,.8,.2,1) both}
+.fz-panel:nth-of-type(2){animation-delay:.05s}.fz-panel:nth-of-type(3){animation-delay:.1s}
+@media(max-width:650px){.fz-wrap{width:calc(100% - 22px)}.fz-panel{border-radius:16px;padding:17px}}
+@media(prefers-reduced-motion:reduce){.fz-panel{animation:none!important}}
