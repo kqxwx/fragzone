@@ -74,3 +74,30 @@ input:focus,textarea:focus,select:focus{border-color:var(--green);box-shadow:0 0
 .fz-panel:nth-of-type(2){animation-delay:.05s}.fz-panel:nth-of-type(3){animation-delay:.1s}
 @media(max-width:650px){.fz-wrap{width:calc(100% - 22px)}.fz-panel{border-radius:16px;padding:17px}}
 @media(prefers-reduced-motion:reduce){.fz-panel{animation:none!important}}
+
+
+/* AFTERBURN // support experience */
+:root{--bg:#080a12;--panel:#111525;--panel2:#1a2035;--line:#ffffff1b;--text:#f4f5ff;--muted:#9aa4bf;--green:#d5ff45;--red:#ff637d;--fz-violet:#9a72ff;--fz-cyan:#64dcff}
+body{background:radial-gradient(ellipse at 85% 0%,#5535a52b,transparent 36%),radial-gradient(ellipse at 0% 55%,#1d83a51b,transparent 35%),#080a12}
+.fz-brand{letter-spacing:-1.2px}.fz-brand span{color:var(--green)}
+.fz-head{border-bottom:1px solid #ffffff13;padding-bottom:17px}
+.fz-panel{background:linear-gradient(145deg,#191f34ed,#101525ed);border:1px solid #ffffff1b;border-radius:20px;box-shadow:0 22px 65px #0004;backdrop-filter:blur(16px)}
+.fz-panel h1,.fz-panel h2{letter-spacing:-1px}
+input,textarea,select{background:#0c1120;border-color:#ffffff20;border-radius:12px}
+input:focus,textarea:focus,select:focus{border-color:var(--fz-violet);box-shadow:0 0 0 3px #9a72ff1c;outline:none}
+.fz-btn{background:linear-gradient(100deg,#d5ff45,#baf04a);color:#10140a;border-radius:12px;box-shadow:0 8px 25px #d5ff4525}
+.fz-btn-ghost{background:#ffffff09;color:#e5e8f7;border:1px solid #ffffff22;box-shadow:none}
+.fz-ticket,.fz-admin-ticket,.fz-user-row{background:#11182a;border-color:#ffffff19;border-radius:14px}
+.fz-ticket:hover,.fz-admin-ticket:hover,.fz-user-row:hover{border-color:#9a72ff80;box-shadow:0 14px 38px #0005}
+.fz-stat,.fz-stat:nth-child(2n){background:linear-gradient(145deg,#202642,#12182a);border-color:#ffffff1a;border-radius:18px}
+.fz-eyebrow,.fz-head-label{color:var(--green)}
+.fz-head-label{background:#d5ff4510;border-color:#d5ff4540}
+.fz-owner-badge{background:#d5ff4515;color:var(--green);border-color:#d5ff4555}
+.fz-admin-badge{background:#9a72ff1a;color:#c2afff;border-color:#9a72ff55}
+.notice{background:#9a72ff0d;border-color:#9a72ff65;border-radius:13px}
+.fz-empty{border-color:#ffffff25;border-radius:14px}
+.fz-admin-hero h1{font-size:clamp(36px,5vw,58px);letter-spacing:-2px}
+.fz-admin-section-head h2{font-size:25px;letter-spacing:-1px}
+.fz-admin-toolbar input,.fz-admin-toolbar select{border-radius:12px}
+.fz-admin-footer{border-top:1px solid #ffffff12}
+@media(prefers-reduced-motion:reduce){.fz-panel{animation:none!important}}
