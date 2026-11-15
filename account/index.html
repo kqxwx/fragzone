@@ -55,6 +55,22 @@ body{background:radial-gradient(ellipse at 85% 0%,#5535a52b,transparent 36%),rad
 .btn.primary{background:linear-gradient(100deg,#d5ff45,#baf04a);color:#10140a;box-shadow:0 8px 25px #d5ff4525}
 @media(prefers-reduced-motion:reduce){.hero,.grid .card,.columns .section,.side-stack .card{animation:none!important}}
 
+/* OVERDRIVE // account portal */
+:root{--bg:#070810;--panel:#111426;--panel2:#191d32;--line:#ffffff1b;--text:#f4f3ff;--muted:#9699b3;--green:#d9ff3f;--violet:#9b6cff;--cyan:#53e3ff}
+body{background:radial-gradient(ellipse at 85% 0%,#6338a52c,transparent 35%),radial-gradient(ellipse at 0% 70%,#1c678525,transparent 36%),#070810;color:var(--text)}
+body:before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.12;background-image:linear-gradient(#aab2ff12 1px,transparent 1px),linear-gradient(90deg,#aab2ff12 1px,transparent 1px);background-size:42px 42px}
+.wrap{max-width:1320px}header{border-color:#ffffff18}header .logo{font-size:26px;letter-spacing:-1.5px}header .logo span{color:var(--green);text-shadow:0 0 24px #d9ff3f55}
+.hero{position:relative;overflow:hidden;background:radial-gradient(circle at 88% 35%,#9b6cff45,transparent 26%),radial-gradient(circle at 100% 100%,#53e3ff22,transparent 32%),linear-gradient(115deg,#1b1831,#15192c 58%,#101e2d);border:1px solid #9b6cff55;box-shadow:0 25px 80px #0007}
+.hero:after{content:"FZ";position:absolute;right:5%;top:50%;transform:translateY(-55%);font-size:clamp(110px,20vw,220px);font-weight:1000;font-style:italic;letter-spacing:-20px;color:#ffffff0a;pointer-events:none}
+.hero h1{font-size:clamp(40px,6vw,68px);letter-spacing:-3px}.eyebrow{color:var(--green);letter-spacing:3px}
+.card,.ticket-list{background:linear-gradient(145deg,#191d34,#101322);border:1px solid #ffffff1c;box-shadow:0 18px 48px #0004}
+.card{border-radius:19px}.grid .card{position:relative;overflow:hidden}.grid .card:after{content:"";position:absolute;right:-28px;bottom:-48px;width:120px;height:120px;border-radius:50%;background:#9b6cff22;filter:blur(10px)}
+.card-value{font-size:32px;letter-spacing:-1.5px}.ticket-list{border-radius:17px}.ticket{border-color:#ffffff13}.ticket:hover,.quick-links a:hover,.account-item:hover{border-color:#9b6cff88;background:#1b1e37}
+.quick-links a,.account-item{background:#0d1120;border:1px solid #ffffff18;border-radius:12px}
+.avatar,.account-avatar{background:linear-gradient(135deg,var(--green),var(--cyan));box-shadow:0 0 25px #53e3ff25}
+.btn.primary{background:var(--green);color:#11140a;box-shadow:0 8px 28px #d9ff3f28}.nav-link,.btn{border-radius:11px}
+@media(max-width:620px){.hero:after{right:-12%;font-size:130px;top:70%}}
+
 </style></head>
 <body><div class="wrap" id="accountApp" hidden>
 <header><a class="logo" href="/">FRAG<span>ZONE</span></a><nav><a class="nav-link" href="/">Каталог серверов</a><a class="nav-link" href="/support/">Поддержка</a><a class="nav-link admin" id="adminLink" href="/support/admin.html" hidden>⚙ Админ-панель</a><button class="btn" id="logout">Выйти ↗</button></nav></header>
