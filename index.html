@@ -827,39 +827,21 @@ button,a,.popular-game,.stat{ -webkit-tap-highlight-color:transparent}
 <div class="app">
 
 <aside class="sidebar">
-  <div class="logo"><img src="/assets/fragzone-icon.svg" alt="FRAGZONE" style="width:42px;height:42px;vertical-align:middle;margin-right:9px">FRAG<span>ZONE</span></div>
-
-  <div>
-    <div class="side-title" data-t="navigation">НАВИГАЦИЯ</div>
-    <div class="nav">
-      <button class="active" onclick="setPage('all')" data-page="all">
-        <span class="nav-icon">⌂</span><span data-t="home">Главная</span>
-      </button>
-      <button onclick="setPage('favorites')" data-page="favorites">
-        <span class="nav-icon">♡</span><span data-t="favorites">Избранное</span>
-      </button>
-      <button onclick="location.href='/support/'">
-        <span class="nav-icon">✉</span><span data-t="support">Поддержка</span>
-      </button>
-      <button onclick="location.href='/games/'"><span class="nav-icon">✧</span><span>Игры</span></button>
-      <button onclick="location.href='/leaderboards/'"><span class="nav-icon">♜</span><span>Рейтинг</span></button>
-      <button onclick="location.href='/news/'"><span class="nav-icon">◈</span><span>Новости</span></button>
-      <button onclick="location.href='/community/'"><span class="nav-icon">◎</span><span>Сообщество</span></button>
+  <a class="logo" href="/" aria-label="FRAGZONE"><img src="/assets/fragzone-icon.svg" alt="" style="width:42px;height:42px;vertical-align:middle;margin-right:9px">FRAG<span>ZONE</span></a>
+  <div class="sidebar-menu">
+    <div class="side-title">МЕНЮ</div>
+    <div class="nav" aria-label="Основная навигация">
+      <button class="active" onclick="setPage('favorites')" data-page="favorites"><span class="nav-icon">♡</span><span>Избранное</span></button>
+      <button onclick="location.href='/support/'"><span class="nav-icon">✉</span><span>Поддержка</span></button>
+      <button onclick="location.href='/server-owner/'"><span class="nav-icon">▣</span><span>Мой сервер</span></button>
     </div>
   </div>
-
-  <div class="sidebar-bottom">
-    <strong style="font-size:13px" data-t="yourserver">Твой сервер?</strong>
-    <p data-t="addtext">Добавь свой игровой сервер в каталог.</p>
-    <button onclick="location.href='/server-owner/'">
-      ＋ <span data-t="add">Добавить сервер</span>
-    </button>
-  </div>
+  <div class="sidebar-note"><span class="sidebar-note-mark">FZ</span><strong>FRAGZONE</strong><span>Играй. Находи. Побеждай.</span></div>
 </aside>
 
 <div class="main">
 
-<nav class="mobile-dock" aria-label="Основная навигация"><a href="/" aria-label="Главная">⌂<small>Главная</small></a><a href="/games/" aria-label="Игры">✧<small>Игры</small></a><a href="/leaderboards/" aria-label="Рейтинг">♜<small>Рейтинг</small></a><a href="/news/" aria-label="Новости">◈<small>Новости</small></a><a href="/account/" aria-label="Аккаунт">◎<small>Аккаунт</small></a></nav>
+<nav class="mobile-dock" aria-label="Основная навигация"><a href="/#favorites" onclick="setPage('favorites');return false" aria-label="Избранное">♡<small>Избранное</small></a><a href="/support/" aria-label="Поддержка">✉<small>Поддержка</small></a><a href="/server-owner/" aria-label="Мой сервер">▣<small>Мой сервер</small></a></nav>
 <header class="topbar">
   <div class="breadcrumb">FRAGZONE / <span data-t="monitor">Live monitoring</span></div>
 
