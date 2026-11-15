@@ -123,5 +123,3 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--fz-viole
 .fz-admin-hero h1{font-size:clamp(38px,5vw,62px);letter-spacing:-2.5px}
 .fz-admin-toolbar input,.fz-admin-toolbar select{border-radius:12px}
 @media(max-width:650px){.fz-wrap{width:calc(100% - 22px)}.fz-panel{padding:17px}.fz-head{gap:10px}}
-
-@import url('/assets/cyber-ice.css');
