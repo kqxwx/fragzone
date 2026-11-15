@@ -827,21 +827,33 @@ button,a,.popular-game,.stat{ -webkit-tap-highlight-color:transparent}
 <div class="app">
 
 <aside class="sidebar">
-  <a class="logo" href="/" aria-label="FRAGZONE"><img src="/assets/fragzone-icon.svg" alt="" style="width:42px;height:42px;vertical-align:middle;margin-right:9px">FRAG<span>ZONE</span></a>
-  <div class="sidebar-menu">
-    <div class="side-title">МЕНЮ</div>
-    <div class="nav" aria-label="Основная навигация">
-      <button onclick="setPage('favorites')" data-page="favorites"><span class="nav-icon">♡</span><span>Избранное</span></button>
-      <button onclick="location.href='/support/'"><span class="nav-icon">✉</span><span>Поддержка</span></button>
-      <button onclick="location.href='/server-owner/'"><span class="nav-icon">▣</span><span>Мой сервер</span></button>
-    </div>
+  <a class="logo" href="/" aria-label="FRAGZONE">
+    <img src="/assets/fragzone-icon.svg" alt="" width="38" height="38">
+    <span class="brand-word">FRAG<span>ZONE</span></span>
+  </a>
+  <div class="sidebar-section">
+    <div class="side-title">НАВИГАЦИЯ</div>
+    <nav class="nav" aria-label="Основная навигация">
+      <button type="button" onclick="setPage('favorites')" data-page="favorites">
+        <span class="nav-icon" aria-hidden="true">♡</span><span>Избранное</span>
+      </button>
+      <a class="nav-link" href="/support/">
+        <span class="nav-icon" aria-hidden="true">?</span><span>Поддержка</span>
+      </a>
+      <a class="nav-link active" href="/" aria-current="page">
+        <span class="nav-icon" aria-hidden="true">▦</span><span>Сервера</span>
+      </a>
+    </nav>
   </div>
-  <div class="sidebar-note"><span class="sidebar-note-mark">FZ</span><strong>FRAGZONE</strong><span>Играй. Находи. Побеждай.</span></div>
 </aside>
 
 <div class="main">
 
-<nav class="mobile-dock" aria-label="Основная навигация"><a href="/#favorites" onclick="setPage('favorites');return false" aria-label="Избранное">♡<small>Избранное</small></a><a href="/support/" aria-label="Поддержка">✉<small>Поддержка</small></a><a href="/server-owner/" aria-label="Мой сервер">▣<small>Мой сервер</small></a></nav>
+<nav class="mobile-dock" aria-label="Основная навигация">
+  <a href="/#favorites" onclick="setPage('favorites');return false" aria-label="Избранное"><span aria-hidden="true">♡</span><small>Избранное</small></a>
+  <a href="/support/" aria-label="Поддержка"><span aria-hidden="true">?</span><small>Поддержка</small></a>
+  <a href="/" aria-current="page" aria-label="Сервера"><span aria-hidden="true">▦</span><small>Сервера</small></a>
+</nav>
 <header class="topbar">
   <div class="breadcrumb">FRAGZONE / <span data-t="monitor">Live monitoring</span></div>
 
