@@ -1,1 +1,74 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#080e1b"><title>FRAGZONE — Портал владельца сервера</title><meta name="description" content="Портал для владельцев игровых серверов: добавление проекта, подтверждение данных, аналитика и инструменты продвижения. Функции публикации подключим после отдельной серверной проверки и защиты заявок."><link rel="icon" href="/assets/fragzone-icon.svg"><link rel="stylesheet" href="/assets/cyber-ice.css"><link rel="stylesheet" href="/assets/sections.css"></head><body><main class="section-wrap"><div class="section-back"><a href="/">← FRAGZONE</a><span class="section-status">Портал готовится</span></div><section class="section-hero"><div class="section-kicker">SERVER OWNER HUB</div><h1>Твой сервер. Твоя аудитория.</h1><p>Портал для владельцев игровых серверов: добавление проекта, подтверждение данных, аналитика и инструменты продвижения. Функции публикации подключим после отдельной серверной проверки и защиты заявок.</p><div class="section-actions"><a class="fz-btn" href="/support/">Отправить запрос в поддержку →</a><a class="fz-btn fz-btn-ghost" href="/support/">Поддержка</a></div></section><section class="section-grid"><article class="section-card"><div class="section-icon">＋</div><h2>Добавление сервера</h2><p>Заявка на включение сервера в каталог.</p></article><article class="section-card"><div class="section-icon">⌁</div><h2>Статистика</h2><p>Просмотр онлайна и динамики после подключения проекта.</p></article><article class="section-card"><div class="section-icon">◇</div><h2>Продвижение</h2><p>Инструменты видимости и представления сервера.</p></article></section><footer class="fz-muted" style="padding:22px 4px;border-top:1px solid var(--ice-line)">FRAGZONE © 2026 · CYBER ICE</footer></main><script src="/assets/cyber-ice.js" defer></script></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080d18">
+<title>FRAGZONE — Кабинет владельца сервера</title>
+<meta name="description" content="Портал FRAGZONE для владельцев игровых серверов. Информация о добавлении, аналитике и продвижении проектов.">
+<link rel="icon" href="/assets/fragzone-icon.svg">
+<link rel="stylesheet" href="/assets/cyber-ice.css">
+<link rel="stylesheet" href="/assets/sections.css">
+<style>
+.owner-shell{width:min(1180px,calc(100% - 40px));margin:0 auto;padding:26px 0 70px}
+.owner-nav{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:30px}
+.owner-brand{display:flex;align-items:center;gap:11px;color:#f3f6fc;text-decoration:none;font:900 20px 'Space Grotesk';letter-spacing:-1px}
+.owner-brand img{width:39px;height:39px}.owner-brand span{color:#ffc184}
+.owner-nav-link{display:inline-flex;align-items:center;gap:9px;padding:11px 15px;border:1px solid #ffffff20;border-radius:11px;background:#142038;color:#c7d8ef;text-decoration:none;font-size:12px;font-weight:800}
+.owner-hero{position:relative;overflow:hidden;isolation:isolate;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(260px,.75fr);gap:28px;align-items:center;min-height:400px;padding:clamp(28px,5vw,62px);border:1px solid #5279b477;border-radius:28px;background:radial-gradient(ellipse at 82% 40%,#477fe34a,transparent 35%),radial-gradient(ellipse at 95% 100%,#e99a5730,transparent 35%),linear-gradient(120deg,#15253d,#17213a 58%,#22243b);box-shadow:0 28px 80px #0006}
+.owner-kicker{display:inline-flex;padding:8px 12px;border:1px solid #ffb36b55;border-radius:99px;background:#ffb36b12;color:#ffc184;font-size:9px;font-weight:900;letter-spacing:2px}
+.owner-hero h1{max-width:660px;margin:19px 0 14px;font:900 clamp(42px,6vw,72px)/.97 'Space Grotesk';letter-spacing:-.075em;color:#f4f6fc}
+.owner-hero p{max-width:550px;margin:0;color:#c1cce0;font-size:14px;line-height:1.9}
+.owner-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:25px}
+.owner-button{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:13px 18px;border-radius:11px;background:linear-gradient(110deg,#ffc184,#ff9c66);color:#1b1720;text-decoration:none;font-size:11px;font-weight:900}
+.owner-button.secondary{background:#ffffff0d;border:1px solid #ffffff30;color:#f3f6fc}
+.owner-art{position:relative;display:grid;place-items:center;min-height:250px}
+.owner-art-orbit{position:absolute;width:min(100%,280px);aspect-ratio:1;border:1px solid #ffffff32;border-radius:36%;transform:rotate(28deg);background:linear-gradient(145deg,#ffffff14,#4e8cff25 50%,#ffb36b20);box-shadow:inset 0 0 55px #4e8cff32,0 0 65px #4e8cff24}
+.owner-art-orbit:before,.owner-art-orbit:after{content:"";position:absolute;inset:18%;border:1px solid #ffffff35;border-radius:50%}
+.owner-art-orbit:after{inset:34%;border-color:#ffc18488}
+.owner-art-mark{position:relative;display:grid;place-items:center;width:118px;height:118px;border-radius:32px;background:linear-gradient(145deg,#4e8cff,#ffc184);color:#111827;font:900 52px 'Space Grotesk';letter-spacing:-7px;box-shadow:0 18px 50px #0006}
+.owner-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:18px 0 34px}
+.owner-card{min-height:190px;padding:23px;border:1px solid #ffffff18;border-radius:18px;background:linear-gradient(145deg,#17243a,#101827);box-shadow:0 13px 34px #0003}
+.owner-card:hover{transform:translateY(-4px);border-color:#6288c5;box-shadow:0 20px 44px #0005}
+.owner-card-icon{display:grid;place-items:center;width:48px;height:48px;border:1px solid #4e8cff4d;border-radius:14px;background:#4e8cff1c;color:#ffc184;font-size:22px}
+.owner-card h2{margin:17px 0 8px;font:800 21px 'Space Grotesk';letter-spacing:-.7px;color:#f3f6fc}
+.owner-card p{margin:0;color:#aab8ce;font-size:12px;line-height:1.8}
+.owner-bottom{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:23px 25px;border:1px solid #ffffff1b;border-radius:17px;background:linear-gradient(110deg,#15243a,#111a2b)}
+.owner-bottom strong{display:block;font:800 18px 'Space Grotesk';color:#f4f6fc}.owner-bottom p{margin:6px 0 0;color:#aab8ce;font-size:12px;line-height:1.7}
+.owner-footer{padding:25px 3px 0;color:#8191a8;font-size:10px;text-align:center}
+@media(max-width:760px){.owner-shell{width:calc(100% - 24px);padding:14px 0 45px}.owner-nav{margin-bottom:17px}.owner-hero{grid-template-columns:1fr;gap:4px;min-height:0;padding:27px 22px;border-radius:21px}.owner-hero h1{font-size:clamp(40px,11vw,59px)}.owner-hero p{font-size:13px}.owner-art{min-height:180px}.owner-art-orbit{width:170px}.owner-art-mark{width:86px;height:86px;font-size:40px}.owner-overview{grid-template-columns:1fr;gap:10px;margin:12px 0 22px}.owner-card{min-height:0;padding:19px}.owner-bottom{align-items:flex-start;flex-direction:column;padding:20px}.owner-nav-link{padding:10px 12px;font-size:11px}}
+@media(prefers-reduced-motion:reduce){.owner-card{transition:none}}
+</style>
+</head>
+<body>
+<main class="owner-shell">
+<nav class="owner-nav" aria-label="Навигация">
+<a class="owner-brand" href="/"><img src="/assets/fragzone-icon.svg" alt=""><span>FRAG</span>ZONE</a>
+<a class="owner-nav-link" href="/">← На главную</a>
+</nav>
+<section class="owner-hero">
+<div>
+<div class="owner-kicker">FRAGZONE / SERVER OWNER HUB</div>
+<h1>Твой сервер заслуживает большую арену.</h1>
+<p>Место, где начинается путь твоего проекта в FRAGZONE. Подготовь информацию о сервере, расскажи о своём сообществе и свяжись с командой для размещения в каталоге.</p>
+<div class="owner-actions">
+<a class="owner-button" href="/support/">Обсудить добавление сервера <span aria-hidden="true">↗</span></a>
+<a class="owner-button secondary" href="/support/">Связаться с командой</a>
+</div>
+</div>
+<div class="owner-art" aria-hidden="true"><div class="owner-art-orbit"></div><div class="owner-art-mark">FZ</div></div>
+</section>
+<section class="owner-overview" aria-label="Возможности портала">
+<article class="owner-card"><div class="owner-card-icon" aria-hidden="true">＋</div><h2>Добавление проекта</h2><p>Расскажи о сервере, укажи игру, адрес подключения и особенности своего сообщества.</p></article>
+<article class="owner-card"><div class="owner-card-icon" aria-hidden="true">⌁</div><h2>Статистика и онлайн</h2><p>После подключения проекта его доступные игровые показатели будут отображаться в каталоге FRAGZONE.</p></article>
+<article class="owner-card"><div class="owner-card-icon" aria-hidden="true">↗</div><h2>Рост сообщества</h2><p>Сделай сервер заметнее для игроков, которые ищут новое место для игры.</p></article>
+</section>
+<section class="owner-bottom">
+<div><strong>Есть сервер, который стоит показать?</strong><p>Напиши команде FRAGZONE — поможем разобраться с размещением и требованиями.</p></div>
+<a class="owner-button" href="/support/">Перейти в поддержку →</a>
+</section>
+<footer class="owner-footer">FRAGZONE © 2026 · SERVER OWNER PORTAL</footer>
+</main>
+<script src="/assets/cyber-ice.js" defer></script>
+</body>
+</html>
