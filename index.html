@@ -820,6 +820,7 @@ button,a,.popular-game,.stat{ -webkit-tap-highlight-color:transparent}
 @media(max-width:430px){.hero h1{font-size:43px}.hero{padding:25px 21px}.hero p{font-size:13px}.stats{gap:10px}.stat{padding:16px}.stat-value{font-size:29px}}
 
 </style>
+<link rel="stylesheet" href="/assets/cyber-ice.css">
 </head>
 
 <body>
@@ -840,13 +841,17 @@ button,a,.popular-game,.stat{ -webkit-tap-highlight-color:transparent}
       <button onclick="location.href='/support/'">
         <span class="nav-icon">✉</span><span data-t="support">Поддержка</span>
       </button>
+      <button onclick="location.href='/games/'"><span class="nav-icon">✧</span><span>Игры</span></button>
+      <button onclick="location.href='/leaderboards/'"><span class="nav-icon">♜</span><span>Рейтинг</span></button>
+      <button onclick="location.href='/news/'"><span class="nav-icon">◈</span><span>Новости</span></button>
+      <button onclick="location.href='/community/'"><span class="nav-icon">◎</span><span>Сообщество</span></button>
     </div>
   </div>
 
   <div class="sidebar-bottom">
     <strong style="font-size:13px" data-t="yourserver">Твой сервер?</strong>
     <p data-t="addtext">Добавь свой игровой сервер в каталог.</p>
-    <button onclick="alert('Форма добавления появится в следующей версии')">
+    <button onclick="location.href='/server-owner/'">
       ＋ <span data-t="add">Добавить сервер</span>
     </button>
   </div>
@@ -854,6 +859,7 @@ button,a,.popular-game,.stat{ -webkit-tap-highlight-color:transparent}
 
 <div class="main">
 
+<nav class="mobile-dock" aria-label="Основная навигация"><a href="/" aria-label="Главная">⌂<small>Главная</small></a><a href="/games/" aria-label="Игры">✧<small>Игры</small></a><a href="/leaderboards/" aria-label="Рейтинг">♜<small>Рейтинг</small></a><a href="/news/" aria-label="Новости">◈<small>Новости</small></a><a href="/account/" aria-label="Аккаунт">◎<small>Аккаунт</small></a></nav>
 <header class="topbar">
   <div class="breadcrumb">FRAGZONE / <span data-t="monitor">Live monitoring</span></div>
 
@@ -1663,5 +1669,6 @@ setInterval(() => {
 (async()=>{try{const r=await fetch("/api/site/announcement",{cache:"no-store"});if(!r.ok)return;const d=await r.json();if(!d.enabled||!d.text)return;const bar=document.createElement("div");bar.textContent=d.text;bar.setAttribute("role","status");bar.style.cssText="position:sticky;top:0;z-index:9999;padding:12px 18px;text-align:center;background:#182638;color:#eef3fa;border-bottom:1px solid #40516b;font:600 14px system-ui";document.body.prepend(bar);}catch(e){console.warn("FRAGZONE announcement unavailable",e);}})();
 </script>
 <script>(async()=>{try{const r=await fetch("/api/site/announcement",{cache:"no-store"});if(!r.ok)return;const d=await r.json();if(!d.enabled||!d.text)return;const b=document.createElement("div");b.textContent=d.text;b.setAttribute("role","status");b.style.cssText="position:relative;z-index:20;padding:13px 20px;text-align:center;background:#26351f;border-bottom:1px solid #607c42;color:#d9ffb3;font:600 13px Inter,Arial,sans-serif;white-space:pre-wrap";document.body.prepend(b);}catch(_){}})();</script>
+<script src="/assets/cyber-ice.js" defer></script>
 </body>
 </html>
