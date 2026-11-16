@@ -77,7 +77,6 @@
     catalog.after(layout);
     layout.append(main, rail);
     main.append(catalog);
-    if (account) rail.prepend(account);
   }
   const sync = () => {
     renderGameRail();
@@ -129,6 +128,7 @@
     try{
       const response=await fetch("/api/auth/me",{credentials:"same-origin",cache:"no-store"});
       const data=await response.json();loggedUser=data.user;
+      const authPanel=document.getElementById("accountPanel");if(authPanel)authPanel.hidden=!!loggedUser;
       if(!loggedUser){accountButton.innerHTML='<span class="fz-avatar">F</span><span class="fz-account-label"><b>Войти</b><small>Гость</small></span><span class="fz-chevron">⌄</span>';noticeButton.innerHTML='♢<i>0</i>';return;}
       const role=loggedUser.isOwner?"ВЛАДЕЛЕЦ":({head_admin:"ГЛАВНЫЙ АДМИН",administrator:"АДМИНИСТРАТОР",senior_moderator:"СТАРШИЙ МОДЕРАТОР",moderator:"МОДЕРАТОР",helper:"ХЕЛПЕР"}[loggedUser.role]||"ИГРОК");
       const avatar=loggedUser.avatarUrl?'<img src="'+escapeText(loggedUser.avatarUrl)+'" alt="">':escapeText((loggedUser.username||"F").slice(0,1).toUpperCase());
