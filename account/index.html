@@ -73,7 +73,7 @@ body:before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opa
 
 
 .profile-editor{display:grid;gap:9px;margin-top:14px}.profile-editor label{display:grid;gap:5px;color:#aaa5bf;font-size:9px}.profile-editor input,.profile-editor textarea{width:100%;min-width:0;padding:9px;border:1px solid #483665;border-radius:9px;background:#090d1b;color:white;font:inherit;font-size:10px}.profile-editor textarea{resize:vertical}.account-notifications{display:grid;gap:8px}.account-notice{padding:10px;border:1px solid #ffffff15;border-radius:10px;background:#0d1222}.account-notice.unread{border-color:#a642db;background:#241139}.account-notice b{font-size:11px}.account-notice p{font-size:10px;color:#c1bbd1;line-height:1.5}.account-notice small{font-size:8px;color:#8f88a6}.account-notice a{display:block;margin-top:6px;color:#dc9bff;font-size:9px}
-.profile-editor{display:grid;gap:9px;margin-top:14px}.profile-editor label{display:grid;gap:5px;color:#aaa5bf;font-size:9px}.profile-editor input,.profile-editor textarea{width:100%;min-width:0;padding:9px;border:1px solid #483665;border-radius:9px;background:#090d1b;color:white;font:inherit;font-size:10px}.profile-editor textarea{resize:vertical}.account-notifications{display:grid;gap:8px}.account-notice{padding:10px;border:1px solid #ffffff15;border-radius:10px;background:#0d1222}.account-notice.unread{border-color:#a642db;background:#241139}.account-notice b{font-size:11px}.account-notice p{font-size:10px;color:#c1bbd1;line-height:1.5}.account-notice small{font-size:8px;color:#8f88a6}.account-notice a{display:block;margin-top:6px;color:#dc9bff;font-size:9px}.storage-list{display:grid;gap:7px}.storage-item{display:flex;align-items:center;gap:9px;padding:9px;border:1px solid #ffffff14;border-radius:9px;background:#0d1220}.storage-item span{color:#f07bff}.storage-item b{min-width:0;flex:1;font-size:10px;overflow-wrap:anywhere}.storage-item a{color:#d99cff;font-size:9px;white-space:nowrap}</style>
+.profile-editor{display:grid;gap:9px;margin-top:14px}.profile-editor label{display:grid;gap:5px;color:#aaa5bf;font-size:9px}.profile-editor input,.profile-editor textarea{width:100%;min-width:0;padding:9px;border:1px solid #483665;border-radius:9px;background:#090d1b;color:white;font:inherit;font-size:10px}.profile-editor textarea{resize:vertical}.account-notifications{display:grid;gap:8px}.account-notice{padding:10px;border:1px solid #ffffff15;border-radius:10px;background:#0d1222}.account-notice.unread{border-color:#a642db;background:#241139}.account-notice b{font-size:11px}.account-notice p{font-size:10px;color:#c1bbd1;line-height:1.5}.account-notice small{font-size:8px;color:#8f88a6}.account-notice a{display:block;margin-top:6px;color:#dc9bff;font-size:9px}</style>
 <link rel="stylesheet" href="/assets/cyber-ice.css">
 <link rel="stylesheet" href="/assets/account-hub.css">
 <link rel="stylesheet" href="/assets/cyber-ice.css"></head>
@@ -97,7 +97,7 @@ body:before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opa
  <div class="account-actions"><button class="btn primary" id="createAnotherAccount" type="button">＋ Создать аккаунт</button></div>
  <p style="font-size:10px;line-height:1.5;color:var(--muted);margin:10px 0 0">Для переключения потребуется пароль. Пароли на устройстве не сохраняются.</p>
 </section>
-<section class="card favorites-card" id="storage"><div class="eyebrow">YOUR COLLECTION</div><h2 style="font-size:16px;margin:9px 0">Избранное</h2><p>Твои сохранённые серверы на этом устройстве.</p><div id="storageList" class="storage-list">Загружаем хранилище…</div><a class="btn primary" href="/#catalog" style="display:inline-flex;margin-top:4px">Открыть каталог →</a></section>
+
 </aside></div>
 </main><div class="footer"><span>FRAGZONE · PLAYER SPACE</span><span>GAME SERVERS / COMMUNITY / SUPPORT</span></div>
 </div>
@@ -146,7 +146,6 @@ async function init(){
   renderSavedAccounts(user);
   const notificationData=await api("/notifications").catch(()=>({notifications:[]}));
   $("accountNotifications").innerHTML=(notificationData.notifications||[]).map(item=>`<article class="account-notice ${item.is_read?"":"unread"}"><b>${esc(item.title)}</b><p>${esc(item.body)}</p><small>${esc(item.created_at)}</small><a href="${esc(item.href)}">Открыть →</a></article>`).join("")||'<p class="empty">Новых уведомлений нет.</p>';
-  try{const favs=JSON.parse(localStorage.getItem("fragzone_live_favs")||"[]");$("favoritesCount").textContent=Array.isArray(favs)?favs.length:0;$("storageList").innerHTML=Array.isArray(favs)&&favs.length?favs.map(slug=>'<div class="storage-item"><span>♡</span><b>'+esc(slug)+'</b><a href="/#catalog">Открыть каталог →</a></div>').join(""):'<p class="empty">Хранилище пока пусто. Добавляй серверы в избранное из каталога.</p>'}catch{$("favoritesCount").textContent="—";$("storageList").textContent="Не удалось прочитать хранилище."}
   const data=await api("/tickets"),items=Array.isArray(data.tickets)?data.tickets:[];
   $("ticketCount").textContent=items.length;
   $("tickets").innerHTML=items.length?items.slice(0,6).map(t=>'<a class="ticket" href="/support/my-ticket.html?id='+encodeURIComponent(t.id)+'"><span class="ticket-main"><strong>'+esc(t.subject)+'</strong><small>Обновлено: '+esc(t.updated_at||t.created_at||"—")+'</small></span><span class="pill '+(t.status==="closed"?"closed":"")+'">'+esc(statusNames[t.status]||t.status)+'</span></a>').join(""):'<div class="empty">Пока нет обращений. Создай первое обращение в центре поддержки — оно появится здесь.</div>';
@@ -165,4 +164,4 @@ $("logout").addEventListener("click",async()=>{const b=$("logout");b.disabled=tr
 
 
 init();
-</script><script src="/assets/cyber-ice.js" defer></script><script src="/assets/music-dock.js" defer></script></body></html>
+</script></body></html>

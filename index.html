@@ -821,7 +821,8 @@ button,a,.popular-game,.stat{ -webkit-tap-highlight-color:transparent}
 
 </style>
 <link rel="stylesheet" href="/assets/cyber-ice.css">
-<link rel="stylesheet" href="/assets/portal-fx.css">\n<link rel="stylesheet" href="/assets/account-hub.css">
+<link rel="stylesheet" href="/assets/portal-fx.css">
+<link rel="stylesheet" href="/assets/account-hub.css">
 </head>
 
 <body>
@@ -1668,7 +1669,6 @@ setInterval(() => {
 (async()=>{try{const r=await fetch("/api/site/announcement",{cache:"no-store"});if(!r.ok)return;const d=await r.json();if(!d.enabled||!d.text)return;const bar=document.createElement("div");bar.textContent=d.text;bar.setAttribute("role","status");bar.style.cssText="position:sticky;top:0;z-index:9999;padding:12px 18px;text-align:center;background:#182638;color:#eef3fa;border-bottom:1px solid #40516b;font:600 14px system-ui";document.body.prepend(bar);}catch(e){console.warn("FRAGZONE announcement unavailable",e);}})();
 </script>
 <script>(async()=>{try{const r=await fetch("/api/site/announcement",{cache:"no-store"});if(!r.ok)return;const d=await r.json();if(!d.enabled||!d.text)return;const b=document.createElement("div");b.textContent=d.text;b.setAttribute("role","status");b.style.cssText="position:relative;z-index:20;padding:13px 20px;text-align:center;background:#26351f;border-bottom:1px solid #607c42;color:#d9ffb3;font:600 13px Inter,Arial,sans-serif;white-space:pre-wrap";document.body.prepend(b);}catch(_){}})();</script>
-<script src="/assets/cyber-ice.js" defer></script>
-<script src="/assets/portal-fx.js" defer></script>\n<script src="/assets/music-dock.js" defer></script>
+<script src="/assets/portal-fx.js" defer></script>
 </body>
 </html>

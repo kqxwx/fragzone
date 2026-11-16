@@ -47,10 +47,6 @@
   const search = document.querySelector(".toolbar .search");
   if (topRight && search) topRight.prepend(search);
   if (topRight) {
-    const live = document.createElement("span");
-    live.className = "arena-live-pill";
-    live.textContent = "Мониторинг LIVE";
-    topRight.prepend(live);
   }
 
   const heroTitle = document.querySelector(".hero h1");
@@ -97,7 +93,7 @@
   const accountMenu = document.createElement("div");
   accountMenu.className = "fz-account-menu";
   accountMenu.hidden = true;
-  accountMenu.innerHTML = '<a href="/account/">◉ Профиль</a><a href="/account/#storage">▣ Хранилище</a><a href="/community/">♧ Сообщества</a><a href="/news/">▤ Новости</a><a href="/support/">✉ Поддержка</a><a href="/support/admin.html" data-staff-link hidden>⬡ Админ-панель</a><a href="/support/owner.html" data-owner-link hidden>♛ Owner-панель</a><a href="/account/#settings">⚙ Настройки</a><button type="button" data-fz-logout>↪ Выйти</button>';
+  accountMenu.innerHTML = '<a href="/account/">◉ Профиль</a><a href="/community/">♧ Сообщества</a><a href="/news/">▤ Новости</a><a href="/support/">✉ Поддержка</a><a href="/support/admin.html" data-staff-link hidden>⬡ Админ-панель</a><a href="/support/owner.html" data-owner-link hidden>♛ Owner-панель</a><a href="/account/#settings">⚙ Настройки</a><button type="button" data-fz-logout>↪ Выйти</button>';
   accountSlot.append(accountButton, accountMenu);
   const noticeSlot = document.createElement("div");
   noticeSlot.className = "fz-notice-slot";
@@ -155,7 +151,5 @@
   window.addEventListener("fragzone:account-updated",refreshAccount);
   refreshAccount();
   setInterval(refreshAccount,60000);
-  fetch("/api/presence").then(r=>r.json()).then(data=>{const pill=document.querySelector(".arena-live-pill");if(pill)pill.textContent="● Онлайн: "+Number(data.online||0).toLocaleString("ru-RU");}).catch(()=>{});
-  setInterval(()=>fetch("/api/presence").then(r=>r.json()).then(data=>{const pill=document.querySelector(".arena-live-pill");if(pill)pill.textContent="● Онлайн: "+Number(data.online||0).toLocaleString("ru-RU");}).catch(()=>{}),60000);
 
 })();
