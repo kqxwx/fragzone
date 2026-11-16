@@ -169,5 +169,6 @@ const themeColors={violet:"#a900ff",cyan:"#00d9ff",pink:"#ff38cf",green:"#baff45
 function applyAccountTheme(name){const color=themeColors[name]||themeColors.violet;document.documentElement.style.setProperty("--account-accent",color);localStorage.setItem("fragzone_account_theme",name);document.querySelectorAll("[data-theme]").forEach(b=>b.classList.toggle("selected",b.dataset.theme===name));}
 document.querySelectorAll("[data-theme]").forEach(b=>b.addEventListener("click",()=>applyAccountTheme(b.dataset.theme)));
 applyAccountTheme(localStorage.getItem("fragzone_account_theme")||"violet");
-\ninit();
+
+init();
 </script><script src="/assets/cyber-ice.js" defer></script><script src="/assets/music-dock.js" defer></script></body></html>
