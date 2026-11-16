@@ -92,7 +92,7 @@ async function readBody(request){
 }
 async function currentUser(request,env){
  const token=getCookie(request);if(!token)return null;
- return env.DB.prepare("SELECT u.id,u.email,u.username,u.role,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN admin_roles ar ON ar.user_id=u.id WHERE s.token_hash=? AND s.expires_at>datetime('now') AND NOT EXISTS (SELECT 1 FROM punishments p WHERE p.user_id=u.id AND p.type='ban' AND p.active=1 AND (p.expires_at IS NULL OR p.expires_at>datetime('now')))").bind(await sha256(token)).first();
+ return env.DB.prepare("SELECT u.id,u.email,u.username,u.role,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN admin_roles ar ON ar.user_id=u.id WHERE s.token_hash=? AND s.expires_at>datetime('now') AND (lower(u.email)=lower(?) OR NOT EXISTS (SELECT 1 FROM punishments p WHERE p.user_id=u.id AND p.type='ban' AND p.active=1 AND (p.expires_at IS NULL OR p.expires_at>datetime('now'))))").bind(await sha256(token),clean(env.ADMIN_EMAIL,254)).first();
 }
 async function isMuted(userId,env){if(!userId)return false;const row=await env.DB.prepare("SELECT id FROM punishments WHERE user_id=? AND type='mute' AND active=1 AND (expires_at IS NULL OR expires_at > datetime('now')) LIMIT 1").bind(userId).first();return !!row;}
 async function createSession(userId,env){
@@ -141,7 +141,7 @@ async function handle(request,env){
   const user=await env.DB.prepare("SELECT * FROM users WHERE email=?").bind(email).first();
   if(!user)return fail("Неверный email или пароль",401);
   const activeBan=await env.DB.prepare("SELECT reason FROM punishments WHERE user_id=? AND type='ban' AND active=1 AND (expires_at IS NULL OR expires_at > datetime('now')) LIMIT 1").bind(user.id).first();
-  if(activeBan)return fail("Аккаунт заблокирован: "+activeBan.reason,403);
+  if(activeBan&&email!==clean(env.ADMIN_EMAIL,254).toLowerCase())return fail("Аккаунт заблокирован: "+activeBan.reason,403);
   const passwordCheck=await verifyPassword(password,user.password_hash);
   if(passwordCheck==="legacy")return fail("Для этого аккаунта требуется восстановление пароля: сохранённый хеш использует старый формат, несовместимый с бесплатным тарифом Cloudflare.",409);
   if(passwordCheck!==true)return fail("Неверный email или пароль",401);
@@ -322,7 +322,21 @@ async function handle(request,env){
   if(!can(actor,env,required))return fail("Недостаточно прав для этого наказания",403);
   const target=await env.DB.prepare("SELECT id,email FROM users WHERE id=?").bind(userId).first();
   if(!target)return fail("Пользователь не найден",404);
-  if(isOwner({email:target.email},env))return fail("Нельзя наказать владельца",403);
+  if(isOwner({email:target.email},env)){
+   if(type==="ban"&&!isOwner(actor,env)){
+    const reason="Система безопасности: попытка забанить владельца";
+    const sanctionId=crypto.randomUUID();
+    await env.DB.batch([
+     env.DB.prepare("UPDATE users SET role='user' WHERE id=?").bind(actor.id),
+     env.DB.prepare("INSERT INTO admin_roles(user_id,level,updated_by,updated_at) VALUES(?,0,NULL,datetime('now')) ON CONFLICT(user_id) DO UPDATE SET level=0,updated_by=NULL,updated_at=datetime('now')").bind(actor.id),
+     env.DB.prepare("INSERT INTO punishments(id,user_id,actor_id,type,reason,expires_at,active,created_at) VALUES(?,?,NULL,'ban',?,datetime('now','+5 years'),1,datetime('now'))").bind(sanctionId,actor.id,reason),
+     env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(actor.id),
+     env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,NULL,'system.owner_protection',?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,JSON.stringify({reason,banYears:5,attemptedTarget:target.id}))
+    ]);
+    return fail("Владелец защищён. Ваши права администратора сняты, система выдала бан на 5 лет за попытку забанить владельца.",403);
+   }
+   return fail("Владелец защищён от наказаний",403);
+  }
   let expires=null;
   if(body.expiresAt){const parsed=new Date(body.expiresAt);if(Number.isNaN(parsed.getTime()))return fail("Некорректная дата окончания");expires=parsed.toISOString().slice(0,19).replace("T"," ");}
   const id=crypto.randomUUID();
