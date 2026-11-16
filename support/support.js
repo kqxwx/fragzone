@@ -118,17 +118,22 @@ async function admin(){
   const level=Number(me.user.level||0),owner=!!me.user.isOwner,wrap=$("#staffTools");
   if(!wrap||(!owner&&level<2)){if(wrap)wrap.hidden=true;return;}
   wrap.hidden=false;$("#staffLevelBadge").textContent=owner?"OWNER":"LEVEL "+level;
-  $("#staffToolsHint").textContent=level>=5||owner?"Мут, бан, WARN, снятие наказаний и журнал.":level>=4?"Мут и бан; просмотр истории с уровня 3.":"Мут пользователей и работа с тикетами.";
+  $("#staffToolsHint").textContent=owner?"Все наказания, история, снятие наказаний и журнал.":level>=5?"Мут, WARN, бан, снятие наказаний и журнал.":level>=4?"Мут и WARN, бан, история и тикеты.":level>=3?"Мут и WARN, история наказаний, журнал и тикеты.":"Мут и WARN, история наказаний и тикеты.";
   const data=await api("/admin/moderation/users"),targets=data.users||[];
   $("#staffTarget").innerHTML='<option value="">Выбери пользователя</option>'+targets.map(u=>'<option value="'+esc(u.id)+'">'+esc(u.username)+' — '+esc(u.email)+'</option>').join("");
   const type=$("#staffPunishType");
-  for(const opt of type.options){const req=opt.value==="mute"?2:opt.value==="ban"?4:5;opt.disabled=!owner&&level<req;}
-  type.value=owner||level>=5?"warn":level>=4?"ban":"mute";
-  $("#staffPunishForm").onsubmit=async e=>{e.preventDefault();const b=e.currentTarget.querySelector("button");b.disabled=true;try{const expiry=$("#staffPunishExpiry").value;await api("/admin/punishments",{method:"POST",body:JSON.stringify({userId:$("#staffTarget").value,type:type.value,reason:$("#staffPunishReason").value,expiresAt:expiry?new Date(expiry+"T23:59:59").toISOString():null})});notice("Наказание выдано");e.currentTarget.reset();await loadStaffTools();}catch(err){notice(err.message,true);}finally{b.disabled=false;}};
-  if(owner||level>=3){
-   const [ps,logs]=await Promise.all([api("/admin/punishments"),api("/admin/audit")]);
-   $("#staffPunishmentList").innerHTML='<h3>История наказаний</h3>'+((ps.punishments||[]).map(p=>'<article class="fz-admin-ticket"><div><b>'+esc(p.target_username||p.target_email||"Пользователь")+'</b><div class="fz-ticket-meta">'+esc(p.type.toUpperCase())+' · '+esc(p.reason)+' · '+(p.active?"Активно":"Снято")+'</div></div>'+(p.active&&(owner||level>=5)?'<button class="fz-btn fz-btn-ghost" data-revoke-punishment="'+esc(p.id)+'">Снять</button>':"")+'</article>').join("")||'<p class="fz-muted">Наказаний пока нет.</p>');
+  for(const opt of type.options){const req=opt.value==="ban"?4:2;opt.disabled=!owner&&level<req;}
+  type.value=owner||level>=4?"warn":"mute";
+  const duration=$("#staffPunishDuration"),customDate=$("#staffPunishExpiry");
+  duration.onchange=()=>{customDate.hidden=duration.value!=="custom";customDate.required=duration.value==="custom";};
+  $("#staffPunishForm").onsubmit=async e=>{e.preventDefault();const b=e.currentTarget.querySelector("button");b.disabled=true;try{const choice=duration.value,expiry=customDate.value;let expiresAt=null;const durations={ "1h":3600000,"6h":21600000,"1d":86400000,"7d":604800000,"30d":2592000000 };if(choice==="custom"){if(!expiry)throw new Error("Выбери дату окончания");expiresAt=new Date(expiry+"T23:59:59").toISOString();}else if(durations[choice])expiresAt=new Date(Date.now()+durations[choice]).toISOString();await api("/admin/punishments",{method:"POST",body:JSON.stringify({userId:$("#staffTarget").value,type:type.value,reason:$("#staffPunishReason").value,expiresAt})});notice("Наказание выдано");e.currentTarget.reset();customDate.hidden=true;customDate.required=false;duration.value="7d";await loadStaffTools();}catch(err){notice(err.message,true);}finally{b.disabled=false;}};
+  if(owner||level>=2){
+   const ps=await api("/admin/punishments");
+   $("#staffPunishmentList").innerHTML='<h3>История наказаний</h3>'+((ps.punishments||[]).map(p=>'<article class="fz-admin-ticket"><div><b>'+esc(p.target_username||p.target_email||"Пользователь")+'</b><div class="fz-ticket-meta">'+esc(p.type.toUpperCase())+' · '+esc(p.reason)+' · '+(p.active?"Активно":"Снято")+' · '+esc(p.expires_at||"Без срока")+'</div></div>'+(p.active&&(owner||level>=5)?'<button class="fz-btn fz-btn-ghost" data-revoke-punishment="'+esc(p.id)+'">Снять</button>':"")+'</article>').join("")||'<p class="fz-muted">Наказаний пока нет.</p>');
    for(const b of document.querySelectorAll("[data-revoke-punishment]"))b.onclick=async()=>{b.disabled=true;try{await api("/admin/punishments/"+encodeURIComponent(b.dataset.revokePunishment),{method:"PATCH",body:JSON.stringify({active:false})});notice("Наказание снято");await loadStaffTools();}catch(err){notice(err.message,true);b.disabled=false;}};
+  }
+  if(owner||level>=3){
+   const logs=await api("/admin/audit");
    $("#staffAuditList").innerHTML='<h3>Последние действия команды</h3>'+((logs.logs||[]).slice(0,30).map(l=>'<article class="fz-admin-ticket"><div><b>'+esc(l.action)+'</b><div class="fz-ticket-meta">'+esc(l.actor_username||"Сотрудник")+' · '+esc(l.created_at)+' · '+esc(l.target_id||"")+'</div></div></article>').join("")||'<p class="fz-muted">Записей пока нет.</p>');
   }
  }

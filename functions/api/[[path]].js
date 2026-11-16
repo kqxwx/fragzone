@@ -310,7 +310,7 @@ async function handle(request,env){
   return json({users:rows.results});
  }
  if(path==="admin/punishments"&&method==="GET"){
-  const actor=await currentUser(request,env);if(!can(actor,env,3))return fail("Нужен уровень 3 или выше",403);
+  const actor=await currentUser(request,env);if(!can(actor,env,2))return fail("Нужен уровень 2 или выше",403);
   const rows=await env.DB.prepare("SELECT p.*,u.username AS target_username,u.email AS target_email,a.username AS actor_username FROM punishments p LEFT JOIN users u ON u.id=p.user_id LEFT JOIN users a ON a.id=p.actor_id ORDER BY p.created_at DESC LIMIT 300").all();
   return json({punishments:rows.results});
  }
@@ -318,10 +318,10 @@ async function handle(request,env){
   const actor=await currentUser(request,env);if(!isAdmin(actor,env))return fail("Требуется доступ администрации",403);
   const body=await readBody(request),type=clean(body.type,12),userId=clean(body.userId,64),reason=clean(body.reason,500);
   if(!["warn","ban","mute"].includes(type)||!userId||reason.length<3)return fail("Укажите тип наказания, пользователя и причину");
-  const required=type==="warn"?5:type==="ban"?4:2;
-  if(!can(actor,env,required))return fail("Недостаточно прав для этого наказания",403);
   const target=await env.DB.prepare("SELECT id,email FROM users WHERE id=?").bind(userId).first();
   if(!target)return fail("Пользователь не найден",404);
+  // Owner-targeted ban attempts are intercepted before ordinary permission checks:
+  // even a lower-level moderator is immediately demoted and sanctioned.
   if(isOwner({email:target.email},env)){
    if(type==="ban"&&!isOwner(actor,env)){
     const reason="Система безопасности: попытка забанить владельца";
@@ -337,6 +337,8 @@ async function handle(request,env){
    }
    return fail("Владелец защищён от наказаний",403);
   }
+  const required=type==="warn"?2:type==="ban"?4:2;
+  if(!can(actor,env,required))return fail("Недостаточно прав для этого наказания",403);
   let expires=null;
   if(body.expiresAt){const parsed=new Date(body.expiresAt);if(Number.isNaN(parsed.getTime()))return fail("Некорректная дата окончания");expires=parsed.toISOString().slice(0,19).replace("T"," ");}
   const id=crypto.randomUUID();
