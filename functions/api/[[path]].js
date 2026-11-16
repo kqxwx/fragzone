@@ -24,7 +24,18 @@ async function ensureSchema(db) {
    "CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at)",
    "CREATE TABLE IF NOT EXISTS site_settings (key TEXT PRIMARY KEY,value TEXT NOT NULL,updated_by TEXT REFERENCES users(id) ON DELETE SET NULL,updated_at TEXT NOT NULL DEFAULT (datetime('now')))",
    "CREATE TABLE IF NOT EXISTS ticket_internal_notes (id TEXT PRIMARY KEY,ticket_id TEXT NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,author_id TEXT REFERENCES users(id) ON DELETE SET NULL,note TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT (datetime('now')))",
-   "CREATE INDEX IF NOT EXISTS idx_ticket_notes ON ticket_internal_notes(ticket_id,created_at)"
+   "CREATE INDEX IF NOT EXISTS idx_ticket_notes ON ticket_internal_notes(ticket_id,created_at)",
+   "CREATE TABLE IF NOT EXISTS user_profiles (user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,avatar_url TEXT NOT NULL DEFAULT '',bio TEXT NOT NULL DEFAULT '',updated_at TEXT NOT NULL DEFAULT (datetime('now')))",
+   "CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,title TEXT NOT NULL,body TEXT NOT NULL,href TEXT NOT NULL DEFAULT '/account/',kind TEXT NOT NULL DEFAULT 'info',is_read INTEGER NOT NULL DEFAULT 0 CHECK(is_read IN (0,1)),created_at TEXT NOT NULL DEFAULT (datetime('now')))",
+   "CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id,is_read,created_at)",
+   "CREATE TABLE IF NOT EXISTS news_posts (id TEXT PRIMARY KEY,title TEXT NOT NULL,body TEXT NOT NULL,cover_url TEXT NOT NULL DEFAULT '',is_published INTEGER NOT NULL DEFAULT 0 CHECK(is_published IN (0,1)),created_by TEXT REFERENCES users(id) ON DELETE SET NULL,created_at TEXT NOT NULL DEFAULT (datetime('now')),updated_at TEXT NOT NULL DEFAULT (datetime('now')))",
+   "CREATE INDEX IF NOT EXISTS idx_news_published ON news_posts(is_published,created_at)",
+   "CREATE TABLE IF NOT EXISTS communities (id TEXT PRIMARY KEY,name TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',game TEXT NOT NULL DEFAULT '',created_by TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,created_at TEXT NOT NULL DEFAULT (datetime('now')))",
+   "CREATE TABLE IF NOT EXISTS community_members (community_id TEXT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,joined_at TEXT NOT NULL DEFAULT (datetime('now')),PRIMARY KEY(community_id,user_id))",
+   "CREATE TABLE IF NOT EXISTS community_posts (id TEXT PRIMARY KEY,community_id TEXT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,body TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT (datetime('now')))",
+   "CREATE INDEX IF NOT EXISTS idx_community_posts ON community_posts(community_id,created_at)",
+   "CREATE TABLE IF NOT EXISTS presence (user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,last_seen TEXT NOT NULL DEFAULT (datetime('now')))",
+   "CREATE INDEX IF NOT EXISTS idx_presence_seen ON presence(last_seen)"
   ];
   for(const sql of statements) await db.prepare(sql).run();
  })();
@@ -104,7 +115,7 @@ async function handle(request,env){
  const url=new URL(request.url),path=url.pathname.replace(/^\/api\/?/,"").replace(/\/+$/,""),method=request.method.toUpperCase();
  if(method==="OPTIONS")return new Response(null,{status:204});
  const origin=request.headers.get("Origin");if(origin&&origin!==url.origin)return fail("Недопустимый источник запроса",403);
- if(path==="auth/me"&&method==="GET"){const user=await currentUser(request,env);return json({user:user?viewUser(user,env):null});}
+ if(path==="auth/me"&&method==="GET"){const user=await currentUser(request,env);if(!user)return json({user:null});const profile=await env.DB.prepare("SELECT avatar_url,bio FROM user_profiles WHERE user_id=?").bind(user.id).first();return json({user:{...viewUser(user,env),avatarUrl:profile?.avatar_url||"",bio:profile?.bio||""}});}
  if(path==="auth/register"&&method==="POST"){
   const registration=await env.DB.prepare("SELECT value FROM site_settings WHERE key='registration_enabled'").first();
   if(registration?.value==="false")return fail("Регистрация временно отключена владельцем сайта",403);
@@ -368,6 +379,115 @@ async function handle(request,env){
   await env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(userId).run();
   await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"sessions.revoke",userId,"{}").run();return json({ok:true});
  }
+  if(path==="profile"&&method==="GET"){
+   const user=await currentUser(request,env);if(!user)return fail("Войдите в аккаунт",401);
+   const profile=await env.DB.prepare("SELECT avatar_url,bio,updated_at FROM user_profiles WHERE user_id=?").bind(user.id).first();
+   return json({profile:{username:user.username,avatarUrl:profile?.avatar_url||"",bio:profile?.bio||""},user:viewUser(user,env)});
+  }
+  if(path==="profile"&&method==="PATCH"){
+   const user=await currentUser(request,env);if(!user)return fail("Войдите в аккаунт",401);
+   const body=await readBody(request),username=clean(body.username,32),avatarUrl=clean(body.avatarUrl,500),bio=clean(body.bio,300);
+   if(username.length<2)return fail("Имя должно содержать минимум 2 символа");
+   if(avatarUrl){try{const parsed=new URL(avatarUrl);if(parsed.protocol!=="https:"||!parsed.hostname.includes("."))return fail("Аватар должен быть HTTPS-ссылкой");}catch{return fail("Некорректная ссылка на аватар");}}
+   await env.DB.prepare("UPDATE users SET username=? WHERE id=?").bind(username,user.id).run();
+   await env.DB.prepare("INSERT INTO user_profiles(user_id,avatar_url,bio,updated_at) VALUES(?,?,?,datetime('now')) ON CONFLICT(user_id) DO UPDATE SET avatar_url=excluded.avatar_url,bio=excluded.bio,updated_at=datetime('now')").bind(user.id,avatarUrl,bio).run();
+   await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),user.id,"profile.update",user.id,JSON.stringify({username,avatarChanged:!!avatarUrl})).run();
+   return json({ok:true,profile:{username,avatarUrl,bio}});
+  }
+  if(path==="notifications"&&method==="GET"){
+   const user=await currentUser(request,env);if(!user)return fail("Войдите в аккаунт",401);
+   const rows=await env.DB.prepare("SELECT id,title,body,href,kind,is_read,created_at FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 50").bind(user.id).all();
+   return json({notifications:rows.results,unread:rows.results.filter(x=>!x.is_read).length});
+  }
+  if(path==="notifications/read-all"&&method==="POST"){
+   const user=await currentUser(request,env);if(!user)return fail("Войдите в аккаунт",401);
+   await env.DB.prepare("UPDATE notifications SET is_read=1 WHERE user_id=?").bind(user.id).run();return json({ok:true});
+  }
+  const notificationMatch=path.match(/^notifications\/([0-9a-f-]{36})$/i);
+  if(notificationMatch&&method==="PATCH"){
+   const user=await currentUser(request,env);if(!user)return fail("Войдите в аккаунт",401);
+   const result=await env.DB.prepare("UPDATE notifications SET is_read=1 WHERE id=? AND user_id=?").bind(notificationMatch[1],user.id).run();
+   if(!result.meta?.changes)return fail("Уведомление не найдено",404);return json({ok:true});
+  }
+  if(path==="news"&&method==="GET"){
+   const rows=await env.DB.prepare("SELECT n.id,n.title,n.body,n.cover_url,n.created_at,u.username AS author FROM news_posts n LEFT JOIN users u ON u.id=n.created_by WHERE n.is_published=1 ORDER BY n.created_at DESC LIMIT 50").all();
+   return json({news:rows.results});
+  }
+  if(path==="admin/news"&&method==="GET"){
+   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);
+   const rows=await env.DB.prepare("SELECT id,title,body,cover_url,is_published,created_at,updated_at FROM news_posts ORDER BY created_at DESC LIMIT 100").all();return json({news:rows.results});
+  }
+  if(path==="admin/news"&&method==="POST"){
+   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);
+   const body=await readBody(request),title=clean(body.title,120),content=clean(body.body,8000),cover=clean(body.coverUrl,500),publish=body.published===true;
+   if(title.length<3||content.length<5)return fail("Добавьте заголовок и текст новости");
+   if(cover){try{if(new URL(cover).protocol!=="https:")return fail("Обложка должна быть HTTPS-ссылкой");}catch{return fail("Некорректная ссылка обложки");}}
+   const id=crypto.randomUUID();
+   await env.DB.prepare("INSERT INTO news_posts(id,title,body,cover_url,is_published,created_by,created_at,updated_at) VALUES(?,?,?,?,?,?,datetime('now'),datetime('now'))").bind(id,title,content,cover,publish?1:0,actor.id).run();
+   if(publish){
+    const recipients=await env.DB.prepare("SELECT id FROM users WHERE id<>? LIMIT 5000").bind(actor.id).all();
+    for(const recipient of recipients.results||[])await env.DB.prepare("INSERT INTO notifications(id,user_id,title,body,href,kind,created_at) VALUES(?,?,?,?,?,'news',datetime('now'))").bind(crypto.randomUUID(),recipient.id,"Новая новость FRAGZONE",title,"/news/").run();
+   }
+   await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"news.create",id,JSON.stringify({published:publish})).run();
+   return json({ok:true,id},201);
+  }
+  const newsMatch=path.match(/^admin\/news\/([0-9a-f-]{36})$/i);
+  if(newsMatch&&method==="PATCH"){
+   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);
+   const body=await readBody(request),title=clean(body.title,120),content=clean(body.body,8000),cover=clean(body.coverUrl,500),publish=body.published===true;
+   if(title.length<3||content.length<5)return fail("Добавьте заголовок и текст новости");
+   const previous=await env.DB.prepare("SELECT is_published FROM news_posts WHERE id=?").bind(newsMatch[1]).first();if(!previous)return fail("Новость не найдена",404);
+   await env.DB.prepare("UPDATE news_posts SET title=?,body=?,cover_url=?,is_published=?,updated_at=datetime('now') WHERE id=?").bind(title,content,cover,publish?1:0,newsMatch[1]).run();
+   if(publish&&!previous.is_published){const recipients=await env.DB.prepare("SELECT id FROM users WHERE id<>? LIMIT 5000").bind(actor.id).all();for(const recipient of recipients.results||[])await env.DB.prepare("INSERT INTO notifications(id,user_id,title,body,href,kind,created_at) VALUES(?,?,?,?,?,'news',datetime('now'))").bind(crypto.randomUUID(),recipient.id,"Новая новость FRAGZONE",title,"/news/").run();}
+   await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"news.update",newsMatch[1],JSON.stringify({published:publish})).run();return json({ok:true});
+  }
+  if(newsMatch&&method==="DELETE"){
+   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);
+   await env.DB.prepare("DELETE FROM news_posts WHERE id=?").bind(newsMatch[1]).run();return json({ok:true});
+  }
+  if(path==="communities"&&method==="GET"){
+   const user=await currentUser(request,env);
+   const rows=await env.DB.prepare("SELECT c.id,c.name,c.description,c.game,c.created_at,u.username AS owner,(SELECT COUNT(*) FROM community_members m WHERE m.community_id=c.id) AS members FROM communities c JOIN users u ON u.id=c.created_by ORDER BY c.created_at DESC LIMIT 100").all();
+   const joined=user?await env.DB.prepare("SELECT community_id FROM community_members WHERE user_id=?").bind(user.id).all():{results:[]};
+   return json({communities:rows.results,joined:(joined.results||[]).map(x=>x.community_id)});
+  }
+  if(path==="communities"&&method==="POST"){
+   const user=await currentUser(request,env);if(!user)return fail("Войдите, чтобы создать сообщество",401);
+   if(await isMuted(user.id,env))return fail("Ваш аккаунт ограничен от публикаций",403);
+   const body=await readBody(request),name=clean(body.name,48),description=clean(body.description,300),game=clean(body.game,40);
+   if(name.length<3)return fail("Название сообщества — минимум 3 символа");
+   const id=crypto.randomUUID();
+   await env.DB.prepare("INSERT INTO communities(id,name,description,game,created_by) VALUES(?,?,?,?,?)").bind(id,name,description,game,user.id).run();
+   await env.DB.prepare("INSERT INTO community_members(community_id,user_id) VALUES(?,?)").bind(id,user.id).run();
+   return json({ok:true,id},201);
+  }
+  const communityJoin=path.match(/^communities\/([0-9a-f-]{36})\/join$/i);
+  if(communityJoin&&method==="POST"){
+   const user=await currentUser(request,env);if(!user)return fail("Войдите, чтобы вступить",401);
+   const community=await env.DB.prepare("SELECT id FROM communities WHERE id=?").bind(communityJoin[1]).first();if(!community)return fail("Сообщество не найдено",404);
+   await env.DB.prepare("INSERT OR IGNORE INTO community_members(community_id,user_id) VALUES(?,?)").bind(communityJoin[1],user.id).run();return json({ok:true});
+  }
+  const communityPosts=path.match(/^communities\/([0-9a-f-]{36})\/posts$/i);
+  if(communityPosts&&method==="GET"){
+   const rows=await env.DB.prepare("SELECT p.id,p.body,p.created_at,u.username,u.id AS user_id,pr.avatar_url FROM community_posts p JOIN users u ON u.id=p.user_id LEFT JOIN user_profiles pr ON pr.user_id=u.id WHERE p.community_id=? ORDER BY p.created_at DESC LIMIT 100").bind(communityPosts[1]).all();
+   return json({posts:rows.results});
+  }
+  if(communityPosts&&method==="POST"){
+   const user=await currentUser(request,env);if(!user)return fail("Войдите, чтобы писать",401);
+   if(await isMuted(user.id,env))return fail("Ваш аккаунт ограничен от публикаций",403);
+   const body=await readBody(request),content=clean(body.body,2000);if(content.length<2)return fail("Сообщение слишком короткое");
+   const member=await env.DB.prepare("SELECT 1 AS ok FROM community_members WHERE community_id=? AND user_id=?").bind(communityPosts[1],user.id).first();
+   if(!member)return fail("Сначала вступите в сообщество",403);
+   const id=crypto.randomUUID();await env.DB.prepare("INSERT INTO community_posts(id,community_id,user_id,body) VALUES(?,?,?,?)").bind(id,communityPosts[1],user.id,content).run();return json({ok:true,id},201);
+  }
+  if(path==="presence"&&method==="POST"){
+   const user=await currentUser(request,env);if(!user)return fail("Войдите в аккаунт",401);
+   await env.DB.prepare("INSERT INTO presence(user_id,last_seen) VALUES(?,datetime('now')) ON CONFLICT(user_id) DO UPDATE SET last_seen=datetime('now')").bind(user.id).run();return json({ok:true});
+  }
+  if(path==="presence"&&method==="GET"){
+   const count=await env.DB.prepare("SELECT COUNT(*) AS n FROM presence WHERE last_seen>=datetime('now','-5 minutes')").first();
+   return json({online:Number(count?.n||0)});
+  }
  return fail("Маршрут не найден",404);
 }
 export async function onRequest({request,env}){
