@@ -129,7 +129,8 @@
       const response=await fetch("/api/auth/me",{credentials:"same-origin",cache:"no-store"});
       const data=await response.json();loggedUser=data.user;
       const authPanel=document.getElementById("accountPanel");if(authPanel)authPanel.hidden=!!loggedUser;
-      if(!loggedUser){accountButton.innerHTML='<span class="fz-avatar">F</span><span class="fz-account-label"><b>Войти</b><small>Гость</small></span><span class="fz-chevron">⌄</span>';noticeButton.innerHTML='♢<i>0</i>';return;}
+      if(!loggedUser){accountMenu.querySelector("[data-fz-logout]").hidden=true;accountMenu.querySelector("[data-staff-link]").hidden=true;accountMenu.querySelector("[data-owner-link]").hidden=true;accountButton.innerHTML='<span class="fz-avatar">F</span><span class="fz-account-label"><b>Войти</b><small>Гость</small></span><span class="fz-chevron">⌄</span>';noticeButton.innerHTML='♢<i>0</i>';return;}
+      accountMenu.querySelector("[data-fz-logout]").hidden=false;
       const role=loggedUser.isOwner?"ВЛАДЕЛЕЦ":({head_admin:"ГЛАВНЫЙ АДМИН",administrator:"АДМИНИСТРАТОР",senior_moderator:"СТАРШИЙ МОДЕРАТОР",moderator:"МОДЕРАТОР",helper:"ХЕЛПЕР"}[loggedUser.role]||"ИГРОК");
       const avatar=loggedUser.avatarUrl?'<img src="'+escapeText(loggedUser.avatarUrl)+'" alt="">':escapeText((loggedUser.username||"F").slice(0,1).toUpperCase());
       accountButton.innerHTML='<span class="fz-avatar">'+avatar+'</span><span class="fz-account-label"><b>'+escapeText(loggedUser.username)+'</b><small>'+role+'</small></span><span class="fz-chevron">⌄</span>';
