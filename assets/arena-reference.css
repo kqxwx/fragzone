@@ -1,0 +1,111 @@
+/* FRAGZONE ARENA — screenshot-led purple/cyan esports layout */
+:root{--arena-bg:#050611;--arena-panel:#090d1c;--arena-line:#45306e;--arena-purple:#a900ff;--arena-pink:#f000dc;--arena-cyan:#00d9ff;--arena-blue:#176dff;--arena-green:#39ff5b}
+html,body{background:#040611!important;color:#f4f2ff!important}
+body{background:radial-gradient(ellipse at 55% 12%,#142b65 0,transparent 35%),radial-gradient(ellipse at 92% 48%,#430a72 0,transparent 28%),radial-gradient(ellipse at 6% 70%,#26064b 0,transparent 25%),#040611!important;font-family:Inter,Arial,sans-serif}
+body:before{opacity:.18;background-image:radial-gradient(#b8c8ff .6px,transparent .7px);background-size:19px 19px}
+.app{max-width:1800px;margin:0 auto;min-height:100vh;gap:0}
+.sidebar{width:174px;min-width:174px;padding:13px 10px 12px;background:linear-gradient(180deg,#070816f5,#050611f5)!important;border-right:1px solid #7c22c866!important;box-shadow:8px 0 35px #0008;gap:15px;position:relative}
+.logo{display:grid;justify-items:center;gap:2px;padding:10px 2px 14px;border-bottom:1px solid #8d30ff55}
+.logo img{width:64px;height:64px;filter:drop-shadow(0 0 17px #c000ff)}
+.brand-word{font-size:20px;font-weight:1000;letter-spacing:-1.2px;color:#fff}
+.brand-word span{color:#ed30ff;text-shadow:0 0 17px #ed30ff}
+.side-title{color:#a99bc7;font-size:10px;font-weight:900;letter-spacing:1.7px;padding:0 9px;margin:4px 0 7px}
+.nav{gap:3px}
+.nav button,.nav .nav-link{width:100%;min-height:35px;padding:9px 9px;border-radius:9px;display:flex;align-items:center;gap:9px;background:transparent;border:1px solid transparent;color:#c7c3d8;font-size:11px;text-decoration:none;text-align:left}
+.nav button:hover,.nav button.active,.nav .nav-link.active{background:linear-gradient(100deg,#7c0fff9c,#a600ff38)!important;border-color:#c04dff88;color:#fff!important;box-shadow:0 0 18px #a900ff55,inset 0 0 12px #a900ff22}
+.nav-icon{width:17px;font-size:15px}
+.arena-game-nav{border-top:1px solid #7b37bb55;padding-top:12px}
+.arena-game-list{display:grid;gap:2px}
+.arena-game-link{display:flex;align-items:center;gap:8px;min-width:0;width:100%;border:1px solid transparent;border-radius:8px;background:transparent;color:#d5d0e6;text-align:left;padding:6px 7px;font-size:10px;cursor:pointer}
+.arena-game-link img{width:20px;height:20px;object-fit:cover;border-radius:5px}
+.arena-game-link:hover,.arena-game-link.active{background:#7714d54a;border-color:#ad43ff77;color:white;box-shadow:0 0 14px #a900ff44}
+.arena-game-link span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arena-side-cta{margin-top:auto;padding:13px 10px;border:1px solid #a12aff99;border-radius:13px;background:radial-gradient(circle at 50% 0,#9c18ff66,transparent 65%),linear-gradient(145deg,#21103b,#090d20);box-shadow:0 0 22px #a900ff35;text-align:center}
+.arena-side-cta strong{display:block;font-size:12px;color:#fff}
+.arena-side-cta p{font-size:9px;line-height:1.45;color:#b8accf}
+.arena-side-cta a{display:block;padding:8px 5px;border-radius:99px;background:linear-gradient(90deg,#a500ff,#e000db);color:white;text-decoration:none;font-size:10px;font-weight:900;box-shadow:0 0 18px #bc00ff77}
+.main{min-width:0;flex:1}
+.topbar{min-height:62px;height:auto;padding:8px 17px;gap:14px;background:#050817eF!important;border-bottom:1px solid #5f2b9b99!important;box-shadow:0 6px 25px #0007;position:sticky;top:0;z-index:20}
+.breadcrumb{display:none}
+.top-right{width:100%;display:flex;align-items:center;justify-content:flex-end;gap:8px}
+.top-right .search{order:-2;flex:1;max-width:390px;min-width:180px}
+.top-right .search input{height:38px;border-radius:99px!important;padding:8px 15px 8px 38px!important;border:1px solid #6735a4!important;background:#090d20!important;box-shadow:inset 0 0 15px #5a20a522,0 0 15px #7e20e922}
+.top-right .search:before{content:"⌕";position:absolute;z-index:1;margin:6px 0 0 14px;font-size:22px;color:#d8c9ff}
+.site-url,.lang,.top-button{min-height:36px;padding:8px 12px!important;border-radius:99px!important;background:#10162c!important;border:1px solid #573b86!important;color:#f2eaff!important;font-size:10px}
+.site-url:hover,.top-button:hover{border-color:#c13cff!important;box-shadow:0 0 18px #a900ff66}
+.arena-live-pill{white-space:nowrap;padding:8px 12px;border:1px solid #285b4b;border-radius:99px;background:#071c1a;color:#72ff9c;font-size:10px;font-weight:900}
+.arena-live-pill:before{content:"";display:inline-block;width:7px;height:7px;margin-right:7px;border-radius:50%;background:#39ff5b;box-shadow:0 0 10px #39ff5b}
+.content{max-width:none;padding:13px 17px 22px}
+.hero{min-height:290px;margin-bottom:11px;padding:29px 34px;border-radius:17px;border:1px solid #9e32ff!important;overflow:hidden;background:radial-gradient(ellipse at 72% 50%,#087bff99 0,transparent 24%),radial-gradient(ellipse at 84% 90%,#e000f288 0,transparent 31%),radial-gradient(ellipse at 50% 5%,#5236bb99 0,transparent 36%),linear-gradient(105deg,#0a0a22 0%,#111a48 44%,#230c42 75%,#090b20 100%)!important;box-shadow:0 0 0 1px #00d9ff55,0 0 35px #a900ff55,inset 0 0 50px #0009!important;isolation:isolate}
+.hero:before{content:"";position:absolute;inset:-10% -3% -20% 48%;z-index:-1;width:auto;height:auto;transform:none;border-radius:50%;background:radial-gradient(ellipse at 48% 48%,#d7edff 0 2%,#6ba7ff 3%,#384fff 13%,#151b53 27%,#0c1235 38%,transparent 60%),radial-gradient(ellipse at 48% 48%,transparent 0 32%,#a600ff 34%,transparent 36%);filter:drop-shadow(0 0 28px #4f79ff);opacity:.9;animation:arena-nebula 18s ease-in-out infinite alternate}
+.hero:after{content:"✦";position:absolute;right:10%;top:4%;font-size:clamp(150px,22vw,300px);font-weight:900;color:#d500ff24;letter-spacing:0;transform:rotate(-14deg);text-shadow:0 0 60px #b900ff55;pointer-events:none}
+.hero-inner{max-width:570px;z-index:2}
+.eyebrow{display:inline-flex;color:#ff5bfa;border:0;background:transparent;padding:0;font-size:10px;letter-spacing:2.5px;text-shadow:0 0 14px #f000dc}
+.hero h1{font-size:clamp(42px,5.6vw,76px);line-height:.9;letter-spacing:-.065em;font-weight:1000;text-transform:uppercase;text-shadow:0 4px 0 #32105b,0 0 30px #a900ff88;margin:15px 0}
+.hero h1:after{content:"";display:block;width:72%;height:3px;margin-top:10px;background:linear-gradient(90deg,#fff,#a900ff,#00d9ff,transparent);box-shadow:0 0 14px #b900ff}
+.hero p{font-size:13px;line-height:1.65;color:#d5d7f5;max-width:440px}
+.hero-buttons{margin-top:17px;gap:10px}
+.primary,.secondary{min-height:37px;padding:10px 18px;border-radius:99px;font-size:11px;font-weight:900}
+.primary{background:linear-gradient(100deg,#a900ff,#ed00d7)!important;color:#fff!important;box-shadow:0 0 23px #ad00ff99!important}
+.secondary{background:#090d24bb!important;border:1px solid #a83bff!important;color:white!important}
+.account-panel{display:none!important}
+.stats{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 13px}
+.stat{min-height:68px;padding:11px 13px;border-radius:12px;background:linear-gradient(110deg,#09172c,#10102b 58%,#1a0b30)!important;border:1px solid #285baf!important;box-shadow:0 0 16px #006dff30,inset 0 0 20px #00cfff0b;position:relative}
+.stat:nth-child(2){border-color:#268e54!important;box-shadow:0 0 16px #00ff7130}
+.stat:nth-child(3){border-color:#087dc9!important;box-shadow:0 0 16px #00bfff40}
+.stat:nth-child(4){border-color:#a22bd1!important;box-shadow:0 0 16px #bd00ff40}
+.stat-head{font-size:9px;color:#c5c9e0}
+.stat-icon{font-size:18px;color:#00eaff}
+.stat-value{font-size:22px;line-height:1;margin-top:6px;letter-spacing:-.6px}
+.stat-foot{display:none}
+.section-head{margin:17px 0 9px}
+.section-head h2{font-size:16px;font-weight:900;letter-spacing:-.3px}
+.section-head small{color:#e34cff;font-size:9px}
+.popular-games{grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;margin-bottom:13px}
+.popular-game{min-height:95px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px;padding:8px 6px;border-radius:11px;background:linear-gradient(180deg,#111b36,#080b1b)!important;border:1px solid #624080!important;box-shadow:0 5px 18px #0008;position:relative;isolation:isolate}
+.popular-game:before{content:"";position:absolute;inset:0;z-index:-1;background:radial-gradient(circle at 50% 10%,#a900ff55,transparent 65%);opacity:.8}
+.popular-game img,.popular-game-icon{width:100%;height:54px;object-fit:cover;border-radius:7px}
+.popular-game-icon{display:grid;place-items:center;background:linear-gradient(145deg,#e04d00,#4011a8);font-size:24px}
+.popular-game-info{text-align:center;min-width:0;width:100%}
+.popular-game-info strong{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.popular-game-info small{font-size:8px;margin-top:2px;color:#c6c7db;white-space:nowrap}
+.popular-game:hover,.popular-game.active{border-color:#e100ff!important;box-shadow:0 0 18px #bc00ff77!important;transform:translateY(-3px)}
+.arena-catalog-layout{display:grid;grid-template-columns:minmax(0,1fr) 145px;gap:11px;align-items:start}
+.arena-catalog-main{min-width:0}
+.arena-right-rail{display:grid;gap:9px}
+.arena-rail-card{padding:11px 10px;border:1px solid #7330a8;border-radius:11px;background:linear-gradient(150deg,#10122b,#080b19);box-shadow:0 0 16px #a900ff20}
+.arena-rail-card h3{font-size:10px;margin:0 0 7px;color:#e7dcff}
+.arena-rail-card p{font-size:8px;line-height:1.45;color:#aaaac8;margin:5px 0}
+.arena-rail-status{display:flex;align-items:center;gap:6px;color:#67ff8d;font-size:9px;font-weight:900}
+.arena-rail-status i{width:8px;height:8px;border-radius:50%;background:#39ff5b;box-shadow:0 0 10px #39ff5b}
+.arena-news-item{padding:7px 0;border-top:1px solid #ffffff12;font-size:8px;color:#c9c2dd;line-height:1.35}
+.arena-news-item b{display:block;color:#fff;font-size:9px;margin-bottom:2px}
+#catalog .section-head{margin:0 0 8px;padding:9px 11px;border:1px solid #7930bc;border-radius:12px 12px 0 0;background:linear-gradient(90deg,#120d2a,#0b1026)}
+#listTitle{font-size:14px}
+#lastUpdate{color:#58ff80}
+.project-tabs,.view-tabs{margin:8px 0;gap:6px}
+.project-tabs button,.view-tabs button{padding:7px 10px;border-radius:99px;background:#0e1428!important;border:1px solid #50327c!important;color:#ddd4f2;font-size:9px}
+.project-tabs button.active,.view-tabs button.active{background:linear-gradient(90deg,#9e00ff,#e000d6)!important;color:white!important;border-color:#c64aff!important;box-shadow:0 0 14px #a900ff77}
+.toolbar{margin:8px 0;gap:7px}
+.toolbar .search{display:none}
+.search input,.toolbar select{min-height:34px;padding:7px 10px!important;border-radius:99px!important;background:#0b1023!important;border:1px solid #59348c!important;font-size:9px}
+.toolbar select{min-width:100px}
+.table-wrap{border-radius:12px;background:#080c1c!important;border:1px solid #4f2b83!important;box-shadow:0 0 20px #4b00b755!important}
+table{min-width:690px}
+th{padding:9px 8px;background:#0c1126!important;color:#9f9ab9;font-size:8px;letter-spacing:.8px}
+td{padding:8px!important;font-size:9px;color:#e3e0f4;border-bottom:1px solid #ffffff10}
+tbody tr{background:#090d20}
+tbody tr:hover td{background:#25104a!important}
+.server-name{font-size:10px}
+.server-meta{font-size:8px}
+.project-tag{font-size:8px;padding:3px 5px}
+.actions button{padding:5px 7px;border-radius:99px;background:#171333;border-color:#6c39a0;font-size:10px}
+.pagination{margin:8px 0}
+.pagination button{padding:6px 10px;border-radius:99px}
+.note{font-size:8px;margin-top:7px}
+footer{padding:12px;border-top:1px solid #3d1c63;margin-top:8px;font-size:8px}
+@keyframes arena-nebula{0%{transform:scale(.96) rotate(-4deg);filter:hue-rotate(0deg) drop-shadow(0 0 22px #4f79ff)}100%{transform:scale(1.05) rotate(4deg);filter:hue-rotate(32deg) drop-shadow(0 0 36px #b000ff)}}
+@media(max-width:1100px){.sidebar{width:155px;min-width:155px}.arena-catalog-layout{grid-template-columns:minmax(0,1fr) 125px}.popular-games{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:760px){.app{display:block}.sidebar{width:100%;min-width:0;padding:8px 10px;display:block}.logo{display:flex;justify-content:center;padding:3px;border:0}.logo img{width:34px;height:34px}.brand-word{font-size:18px}.sidebar-section{display:none}.arena-game-nav{border:0;padding:6px 0}.arena-game-list{display:flex;overflow:auto;gap:5px}.arena-game-link{width:auto;flex:0 0 auto;padding:6px 9px}.arena-game-link img{width:18px;height:18px}.arena-side-cta{display:none}.topbar{position:relative;padding:8px}.top-right{flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start}.top-right .search{min-width:155px;flex:1}.top-right .site-url{display:none}.arena-live-pill{display:none}.content{padding:10px}.hero{min-height:260px;padding:22px 18px}.hero:before{left:36%;inset-block:-20%;opacity:.65}.hero:after{right:0;font-size:120px}.hero h1{font-size:clamp(37px,10vw,55px);max-width:85%}.hero p{max-width:85%;font-size:11px}.stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.stat{min-height:61px;padding:9px}.stat-value{font-size:20px}.popular-games{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.popular-game{min-height:82px;padding:6px}.popular-game img,.popular-game-icon{height:43px}.popular-game-info strong{font-size:8px}.popular-game-info small{font-size:7px}.arena-catalog-layout{grid-template-columns:1fr}.arena-right-rail{grid-template-columns:repeat(2,minmax(0,1fr))}.arena-right-rail .arena-rail-card{padding:9px}.arena-rail-card h3{font-size:9px}#catalog .section-head{align-items:flex-start}.section-head h2{font-size:13px}}
+@media(max-width:430px){.popular-games{grid-template-columns:repeat(2,minmax(0,1fr))}.hero h1{font-size:39px}.arena-right-rail{grid-template-columns:1fr 1fr}.top-right .search{min-width:130px}.top-right .lang{min-width:65px}}
+@media(prefers-reduced-motion:reduce){.hero:before{animation:none!important}}
