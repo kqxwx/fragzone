@@ -13,7 +13,8 @@ async function load(){
  ]);
  const s=dash.stats;$("#statUsers").textContent=s.users;$("#statTickets").textContent=s.tickets;$("#statOpen").textContent=s.openTickets;$("#statStaff").textContent=s.staff;$("#statWarns").textContent=s.warns;$("#statBans").textContent=s.bans;$("#statSessions").textContent=s.activeSessions??"—";
  staff=staffData.staff||[];users=userData.users||[];tickets=ticketData.tickets||[];punishments=ps.punishments||[];
- renderStaff();renderUsers();renderTickets();renderPunishments();renderAudit(logs.logs||[]);renderSettings(settings.settings||[]);\n const newsData=await api("/admin/news");renderNews(newsData.news||[]);
+ renderStaff();renderUsers();renderTickets();renderPunishments();renderAudit(logs.logs||[]);renderSettings(settings.settings||[]);
+ const newsData=await api("/admin/news");renderNews(newsData.news||[]);
 }
 function renderStaff(){
  const q=$("#staffSearch").value.toLowerCase(),rows=staff.filter(u=>(u.username+" "+u.email).toLowerCase().includes(q));
@@ -55,7 +56,8 @@ $("#newsList").onclick=async e=>{
   await load();
  }catch(error){say(error.message,true)}
 };
-\nload().catch(e=>say(e.message,true));
+
+load().catch(e=>say(e.message,true));
 $("#staffSearch").oninput=renderStaff;$("#userSearch").oninput=renderUsers;$("#ticketSearch").oninput=renderTickets;$("#ticketFilter").onchange=renderTickets;
 $("#staffList").onclick=async e=>{
  const b=e.target.closest("button");if(!b)return;
