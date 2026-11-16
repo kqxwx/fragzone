@@ -50,30 +50,23 @@ body{padding-bottom:76px}
 .fz-music-panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;color:#fff}
 .fz-music-panel-head div{display:grid;gap:4px}.fz-music-panel-head b{font-size:13px}.fz-music-panel-head small{font-size:9px;color:#a9a2bc}
 .fz-music-panel-head button{width:30px;height:30px;font-size:18px}
-.fz-music-tabs{display:flex;gap:7px;margin-bottom:10px}
-.fz-music-tabs button{width:auto!important;flex:1;padding:9px 12px;border-radius:9px!important;font-size:10px;font-weight:800}
-.fz-music-tabs button.active{background:#7e20b5!important;border-color:#b653ed}
-.fz-music-stations{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.fz-station-card{display:grid;grid-template-columns:1fr auto;gap:5px 8px;width:100%!important;height:auto!important;min-height:84px;padding:10px!important;border:1px solid #ffffff18!important;border-radius:11px!important;background:linear-gradient(145deg,#15172b,#0b1020)!important;text-align:left}
-.fz-station-card b{font-size:11px;color:#fff}.fz-station-card small{grid-column:1/-1;color:#aaa2bd;font-size:9px;line-height:1.35}
-.fz-station-card .fz-station-tag{font-size:8px;font-weight:900;letter-spacing:1px;color:#d9a1ff}
-.fz-station-card i{grid-column:2;grid-row:1;font-style:normal;font-size:8px;color:#aaa2bd}
-.fz-station-card.selected{border-color:#bd56ff!important;box-shadow:0 0 16px #a900ff28}
-.fz-station-card.selected i{color:#7cff9c}
-.fz-music-note{margin:10px 2px;color:#938ca8;font-size:9px;line-height:1.5}
+.fz-music-presets{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
+.fz-music-presets button{width:auto!important;height:30px;padding:0 11px;border-radius:9px!important;font-size:9px;font-weight:800}
+.fz-music-presets button.active{background:#7e20b5!important;border-color:#b653ed}
 .fz-music-panel [data-search-form]{display:flex;gap:7px;margin:0 0 10px}
 .fz-music-panel [data-search]{flex:1;min-width:0;padding:10px;border:1px solid #4e376e;border-radius:9px;background:#080b16;color:white;font:inherit;font-size:10px}
 .fz-music-panel [data-search-form] button{width:auto!important;padding:0 14px;background:#9c24dc!important;border:0!important;font-size:10px;font-weight:850}
-.fz-music-results{display:grid;gap:7px;max-height:310px;overflow:auto}
+.fz-music-results{display:grid;gap:7px;max-height:340px;overflow:auto}
 .fz-music-empty{padding:18px;text-align:center;color:#aaa2bd;font-size:10px}
 .fz-track-result{display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:9px;padding:8px;border:1px solid #ffffff12;border-radius:10px;background:#0c1020}
 .fz-track-result img{width:42px;height:42px;object-fit:cover;border-radius:7px;background:#19142b}
 .fz-track-info{display:grid;gap:4px;min-width:0}.fz-track-info b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff;font-size:10px}.fz-track-info small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#aaa2bd;font-size:8px}
 .fz-track-actions{display:flex;align-items:center;gap:5px}.fz-track-actions button,.fz-track-actions a{width:auto!important;padding:7px 8px;border:1px solid #56317d;border-radius:8px;background:#18132a;color:#fff;text-decoration:none;font-size:8px;white-space:nowrap}
 .fz-track-actions button{background:#8e1bc3;border-color:#8e1bc3}
+.fz-music-note{margin:10px 2px;color:#938ca8;font-size:9px;line-height:1.5}
 .fz-music-bottom{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid #ffffff16}
 .fz-music-bottom label{display:flex;align-items:center;gap:8px;color:#bdb5cf;font-size:9px}
 .fz-music-bottom input{width:110px;accent-color:#c000ff}
 .fz-music-bottom span{color:#ff9ba9;font-size:9px}
 .fz-music-attribution{margin-top:9px;color:#77718b;font-size:8px}.fz-music-attribution a{color:#b88be4}
-@media(max-width:520px){.fz-music-center{bottom:7px;gap:6px;padding:7px 8px}.fz-music-center .fz-music-meta{max-width:calc(100% - 150px)}.fz-music-stations{grid-template-columns:1fr}.fz-track-result{grid-template-columns:36px minmax(0,1fr)}.fz-track-result img{width:36px;height:36px}.fz-track-actions{grid-column:2;justify-content:flex-start}.fz-music-panel [data-search-form]{flex-wrap:wrap}.fz-music-panel [data-search]{flex-basis:100%}.fz-music-bottom input{width:75px}}
+@media(max-width:520px){.fz-music-center{bottom:7px;gap:6px;padding:7px 8px}.fz-music-center .fz-music-meta{max-width:calc(100% - 150px)}.fz-track-result{grid-template-columns:36px minmax(0,1fr)}.fz-track-result img{width:36px;height:36px}.fz-track-actions{grid-column:2;justify-content:flex-start}.fz-music-panel [data-search-form]{flex-wrap:wrap}.fz-music-panel [data-search]{flex-basis:100%}.fz-music-bottom input{width:75px}}
