@@ -97,7 +97,7 @@
   const accountMenu = document.createElement("div");
   accountMenu.className = "fz-account-menu";
   accountMenu.hidden = true;
-  accountMenu.innerHTML = '<a href="/account/">◉ Профиль</a><a href="/account/#appearance">✦ Скинченджер</a><a href="/account/#storage">▣ Хранилище</a><a href="/community/">♧ Сообщества</a><a href="/news/">▤ Новости</a><a href="/support/">✉ Поддержка</a><a href="/support/admin.html" data-staff-link hidden>⬡ Админ-панель</a><a href="/support/owner.html" data-owner-link hidden>♛ Owner-панель</a><a href="/account/#settings">⚙ Настройки</a><button type="button" data-fz-logout>↪ Выйти</button>';
+  accountMenu.innerHTML = '<a href="/account/">◉ Профиль</a><a href="/account/#storage">▣ Хранилище</a><a href="/community/">♧ Сообщества</a><a href="/news/">▤ Новости</a><a href="/support/">✉ Поддержка</a><a href="/support/admin.html" data-staff-link hidden>⬡ Админ-панель</a><a href="/support/owner.html" data-owner-link hidden>♛ Owner-панель</a><a href="/account/#settings">⚙ Настройки</a><button type="button" data-fz-logout>↪ Выйти</button>';
   accountSlot.append(accountButton, accountMenu);
   const noticeSlot = document.createElement("div");
   noticeSlot.className = "fz-notice-slot";
