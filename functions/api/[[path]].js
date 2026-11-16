@@ -107,10 +107,10 @@ function isAdmin(user,env){return !!user&&staffLevel(user,env)>=1;}
 function staffLevel(user,env){return isOwner(user,env)?6:(user&&user.level!==undefined?Number(user.level):(user?.role==="admin"?4:0));}
 function staffRole(level){return ({0:"user",1:"helper",2:"moderator",3:"senior_moderator",4:"administrator",5:"head_admin",6:"owner"})[level]||"user";}
 function can(user,env,minimum){return staffLevel(user,env)>=minimum;}
-async function notifyUsers(env,recipients,title,body,href){
+async function notifyUsers(env,recipients,title,body,href,kind="news"){
  const rows=Array.isArray(recipients)?recipients:[];
  for(let offset=0;offset<rows.length;offset+=50){
-  const batch=rows.slice(offset,offset+50).map(user=>env.DB.prepare("INSERT INTO notifications(id,user_id,title,body,href,kind,created_at) VALUES(?,?,?,?,?,'news',datetime('now'))").bind(crypto.randomUUID(),user.id,title,body,href));
+  const batch=rows.slice(offset,offset+50).map(user=>env.DB.prepare("INSERT INTO notifications(id,user_id,title,body,href,kind,created_at) VALUES(?,?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),user.id,title,body,href,kind));
   if(batch.length)await env.DB.batch(batch);
  }
 }
@@ -418,7 +418,17 @@ async function handle(request,env){
    const result=await env.DB.prepare("UPDATE notifications SET is_read=1 WHERE id=? AND user_id=?").bind(notificationMatch[1],user.id).run();
    if(!result.meta?.changes)return fail("Уведомление не найдено",404);return json({ok:true});
   }
-  if(path==="news"&&method==="GET"){
+  if(path==="admin/notifications/broadcast"&&method==="POST"){
+  const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);
+  const body=await readBody(request),title=clean(body.title,120),message=clean(body.body,1000),href=clean(body.href,200)||"/news/";
+  if(title.length<3||message.length<3)return fail("Добавьте заголовок и текст уведомления");
+  if(!href.startsWith("/")||href.startsWith("//"))return fail("Ссылка должна вести на страницу FRAGZONE");
+  const recipients=await env.DB.prepare("SELECT id FROM users WHERE id<>? LIMIT 5000").bind(actor.id).all();
+  await notifyUsers(env,recipients.results||[],title,message,href,"system");
+  await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"notification.broadcast","all",JSON.stringify({title,recipients:recipients.results?.length||0})).run();
+  return json({ok:true,sent:recipients.results?.length||0});
+ }
+ if(path==="news"&&method==="GET"){
    const rows=await env.DB.prepare("SELECT n.id,n.title,n.body,n.cover_url,n.created_at,u.username AS author FROM news_posts n LEFT JOIN users u ON u.id=n.created_by WHERE n.is_published=1 ORDER BY n.created_at DESC LIMIT 50").all();
    return json({news:rows.results});
   }
