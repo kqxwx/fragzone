@@ -131,7 +131,6 @@
       accountMenu.querySelector("[data-staff-link]").hidden=!(Number(loggedUser.level||0)>=1||loggedUser.isOwner);
       accountMenu.querySelector("[data-owner-link]").hidden=!loggedUser.isOwner;
       await refreshNotifications();
-      await fetch("/api/presence",{method:"POST",credentials:"same-origin"}).catch(()=>{});
     }catch(_){}
   }
   async function refreshNotifications(){
