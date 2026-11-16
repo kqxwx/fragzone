@@ -1611,13 +1611,16 @@ setInterval(() => {
       const topLink=document.getElementById("accountTopLink");
       const adminLink=document.getElementById("adminTopLink");
       if(!result.user){
+        panel.hidden=false;
         panel.classList.remove("is-authenticated");
         form.hidden=false;
         userArea.hidden=true;
         if(topLink)topLink.hidden=true;
         if(adminLink)adminLink.hidden=true;
+        window.dispatchEvent(new Event("fragzone:account-updated"));
         return;
       }
+      panel.hidden=true;
       panel.classList.add("is-authenticated");
       form.hidden=true;
       document.getElementById("accountHeading").textContent="Ты в FRAGZONE";
@@ -1649,6 +1652,7 @@ setInterval(() => {
       const logout=document.createElement("button"); logout.type="button"; logout.textContent="Выйти";
       logout.addEventListener("click",async()=>{logout.disabled=true;try{await api("/auth/logout",{method:"POST",body:"{}"});location.reload();}catch(error){logout.disabled=false;alert(error.message);}});
       userArea.replaceChildren(label,cabinet,addAccount,logout);
+      window.dispatchEvent(new Event("fragzone:account-updated"));
     } catch(error) { say(error.message,true); }
   }
   const switchEmail=new URLSearchParams(location.search).get("switch");
