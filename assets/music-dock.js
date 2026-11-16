@@ -13,10 +13,10 @@
       '<div class="fz-yandex-head"><b>Твоя музыка</b><button type="button" data-close aria-label="Закрыть">×</button></div>',
       '<form data-form class="fz-yandex-form">',
         '<label for="fzYandexUrl">Ссылка на трек или плейлист Яндекс Музыки</label>',
-        '<input id="fzYandexUrl" type="url" inputmode="url" autocomplete="url" placeholder="https://music.yandex.ru/users/.../playlists/..." required>',
+        '<input id="fzYandexUrl" type="text" inputmode="url" autocomplete="url" placeholder="https://music.yandex.ru/users/.../playlists/..." required>',
         '<button type="submit">Подключить</button>',
       '</form>',
-      '<p class="fz-yandex-help">Открой трек или плейлист в Яндекс Музыке → «Поделиться» → скопируй ссылку. Можно также вставить ссылку «HTML-код».</p>',
+      '<p class="fz-yandex-help">Открой трек или плейлист в Яндекс Музыке → «Поделиться» → скопируй ссылку. Можно вставить и весь HTML-код плеера — ссылка src извлечётся автоматически.</p>',
       '<div class="fz-yandex-frame" data-frame-wrap hidden></div>',
       '<div class="fz-yandex-empty" data-empty>После подключения здесь появится официальный плеер Яндекс Музыки.</div>',
       '<button type="button" data-change hidden>Изменить ссылку</button>',
@@ -32,8 +32,11 @@
   const empty=dock.querySelector("[data-empty]");
   const changeButton=dock.querySelector("[data-change]");
   function normalize(raw){
+    let value=String(raw||"").trim();
+    const embedded=value.match(/src\\s*=\\s*["']([^"']+)["']/i);
+    if(embedded)value=embedded[1];
     let url;
-    try{url=new URL(String(raw||"").trim());}catch{throw new Error("Вставь корректную ссылку Яндекс Музыки.");}
+    try{url=new URL(value);}catch{throw new Error("Вставь корректную ссылку Яндекс Музыки.");}
     if(url.protocol!=="https:"||!/(^|\.)music\.yandex\.(ru|com|by|kz|ua)$/i.test(url.hostname))throw new Error("Подходит только ссылка с сайта music.yandex.");
     let hash=url.hash.replace(/^#/,"");
     if(url.pathname==="/iframe/"&&hash){
