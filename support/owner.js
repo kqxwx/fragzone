@@ -11,7 +11,7 @@ async function load(){
  const [dash,staffData,ps,logs,settings,userData,ticketData]=await Promise.all([
   api("/admin/dashboard"),api("/admin/staff"),api("/admin/punishments"),api("/admin/audit"),api("/admin/settings"),api("/admin/users"),api("/admin/tickets")
  ]);
- const s=dash.stats;$("#statUsers").textContent=s.users;$("#statTickets").textContent=s.tickets;$("#statOpen").textContent=s.openTickets;$("#statStaff").textContent=s.staff;$("#statWarns").textContent=s.warns;$("#statBans").textContent=s.bans;$("#statSessions").textContent=s.activeSessions??"—";
+ const s=dash.stats;$("#statUsers").textContent=s.users;$("#statTickets").textContent=s.tickets;$("#statOpen").textContent=s.openTickets;$("#statStaff").textContent=s.staff;$("#statWarns").textContent=s.warns;$("#statBans").textContent=s.bans;$("#statSessions").textContent=s.activeSessions??"—";$("#statOnline").textContent=s.online??"—";
  staff=staffData.staff||[];users=userData.users||[];tickets=ticketData.tickets||[];punishments=ps.punishments||[];
  renderStaff();renderUsers();renderTickets();renderPunishments();renderAudit(logs.logs||[]);renderSettings(settings.settings||[]);
  const newsData=await api("/admin/news");renderNews(newsData.news||[]);
