@@ -1,3 +1,4 @@
+@import url('/assets/arena-reference.css');
 /* FRAGZONE PORTAL FX — lightweight ambient motion layer */
 :root {
   --fz-violet: #a879ff;
@@ -30,29 +31,14 @@
   from { box-shadow: 0 28px 90px #0008, 0 0 0 1px #63e5ff12, 0 0 42px #a879ff10; }
   to { box-shadow: 0 32px 100px #0009, 0 0 0 1px #63e5ff30, 0 0 76px #a879ff25; }
 }
-.stat, .popular-game {
-  transform-style: preserve-3d;
-  will-change: transform;
-}
-.stat[data-fz-tilt]:hover,
-.popular-game[data-fz-tilt]:hover {
+.stat, .popular-game { transform-style: preserve-3d; will-change: transform; }
+.stat[data-fz-tilt]:hover, .popular-game[data-fz-tilt]:hover {
   transform: perspective(900px) rotateX(var(--fz-tilt-x, 0deg)) rotateY(var(--fz-tilt-y, 0deg)) translateY(-5px) !important;
   border-color: #a879ff88 !important;
   box-shadow: 0 18px 42px #0007, 0 0 24px #a879ff18 !important;
 }
-.primary:hover, .sidebar-bottom button:hover {
-  box-shadow: 0 0 0 1px #fff5, 0 0 28px #d7ff5766, 0 10px 35px #0006 !important;
-}
-.actions button:hover, .project-tabs button:hover, .view-tabs button:hover {
-  box-shadow: 0 0 18px #63e5ff22;
-}
+.primary:hover, .sidebar-bottom button:hover { box-shadow: 0 0 0 1px #fff5, 0 0 28px #d7ff5766, 0 10px 35px #0006 !important; }
+.actions button:hover, .project-tabs button:hover, .view-tabs button:hover { box-shadow: 0 0 18px #63e5ff22; }
 ::selection { background: #a879ff88; color: white; }
-@media (max-width: 760px) {
-  .fz-particle-canvas { opacity: .25; }
-  .fz-cursor-glow { display: none; }
-  .stat[data-fz-tilt]:hover, .popular-game[data-fz-tilt]:hover { transform: translateY(-3px) !important; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .hero { animation: none !important; }
-  .fz-particle-canvas, .fz-cursor-glow { display: none !important; }
-}
+@media (max-width: 760px) { .fz-particle-canvas { opacity: .25; } .fz-cursor-glow { display: none; } .stat[data-fz-tilt]:hover, .popular-game[data-fz-tilt]:hover { transform: translateY(-3px) !important; } }
+@media (prefers-reduced-motion: reduce) { .hero { animation: none !important; } .fz-particle-canvas, .fz-cursor-glow { display: none !important; } }
