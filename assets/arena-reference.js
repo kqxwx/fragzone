@@ -47,11 +47,6 @@
   const search = document.querySelector(".toolbar .search");
   if (topRight && search) topRight.prepend(search);
   if (topRight) {
-    const profile = document.createElement("a");
-    profile.className = "site-url arena-profile-link";
-    profile.href = "/account/";
-    profile.textContent = "👤 Войти / Профиль";
-    topRight.append(profile);
     const live = document.createElement("span");
     live.className = "arena-live-pill";
     live.textContent = "Мониторинг LIVE";
