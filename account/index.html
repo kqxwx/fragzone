@@ -71,11 +71,14 @@ body:before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opa
 .btn.primary{background:var(--green);color:#11140a;box-shadow:0 8px 28px #d9ff3f28}.nav-link,.btn{border-radius:11px}
 @media(max-width:620px){.hero:after{right:-12%;font-size:130px;top:70%}}
 
-</style>
+
+.profile-editor{display:grid;gap:9px;margin-top:14px}.profile-editor label{display:grid;gap:5px;color:#aaa5bf;font-size:9px}.profile-editor input,.profile-editor textarea{width:100%;min-width:0;padding:9px;border:1px solid #483665;border-radius:9px;background:#090d1b;color:white;font:inherit;font-size:10px}.profile-editor textarea{resize:vertical}.account-notifications{display:grid;gap:8px}.account-notice{padding:10px;border:1px solid #ffffff15;border-radius:10px;background:#0d1222}.account-notice.unread{border-color:#a642db;background:#241139}.account-notice b{font-size:11px}.account-notice p{font-size:10px;color:#c1bbd1;line-height:1.5}.account-notice small{font-size:8px;color:#8f88a6}.account-notice a{display:block;margin-top:6px;color:#dc9bff;font-size:9px}
+.profile-editor{display:grid;gap:9px;margin-top:14px}.profile-editor label{display:grid;gap:5px;color:#aaa5bf;font-size:9px}.profile-editor input,.profile-editor textarea{width:100%;min-width:0;padding:9px;border:1px solid #483665;border-radius:9px;background:#090d1b;color:white;font:inherit;font-size:10px}.profile-editor textarea{resize:vertical}.account-notifications{display:grid;gap:8px}.account-notice{padding:10px;border:1px solid #ffffff15;border-radius:10px;background:#0d1222}.account-notice.unread{border-color:#a642db;background:#241139}.account-notice b{font-size:11px}.account-notice p{font-size:10px;color:#c1bbd1;line-height:1.5}.account-notice small{font-size:8px;color:#8f88a6}.account-notice a{display:block;margin-top:6px;color:#dc9bff;font-size:9px}.theme-choices{display:flex;gap:8px;flex-wrap:wrap}.theme-choices button{border:1px solid var(--account-accent,#a900ff);border-radius:10px;padding:9px 11px;background:#101426;color:#eee;font-size:10px;cursor:pointer}.theme-choices button.selected{background:var(--account-accent,#a900ff);color:white;box-shadow:0 0 16px var(--account-accent,#a900ff)}.avatar{outline:2px solid var(--account-accent,#a900ff);outline-offset:3px} .storage-list{display:grid;gap:7px}.storage-item{display:flex;align-items:center;gap:9px;padding:9px;border:1px solid #ffffff14;border-radius:9px;background:#0d1220}.storage-item span{color:#f07bff}.storage-item b{min-width:0;flex:1;font-size:10px;overflow-wrap:anywhere}.storage-item a{color:#d99cff;font-size:9px;white-space:nowrap}</style>
 <link rel="stylesheet" href="/assets/cyber-ice.css">
+<link rel="stylesheet" href="/assets/account-hub.css">
 <link rel="stylesheet" href="/assets/cyber-ice.css"></head>
 <body><div class="wrap" id="accountApp" hidden>
-<header><a class="logo" href="/">FRAG<span>ZONE</span></a><nav><a class="nav-link" href="/">Каталог серверов</a><a class="nav-link" href="/support/">Поддержка</a><a class="nav-link admin" id="adminLink" href="/support/admin.html" hidden>⚙ Админ-панель</a><button class="btn" id="logout">Выйти ↗</button></nav></header>
+<header><a class="logo" href="/">FRAG<span>ZONE</span></a><nav><a class="nav-link" href="/">Каталог серверов</a><a class="nav-link" href="/community/">Сообщества</a><a class="nav-link" href="/news/">Новости</a><a class="nav-link" href="/support/">Поддержка</a><a class="nav-link admin" id="adminLink" href="/support/admin.html" hidden>⚙ Админ-панель</a><button class="btn" id="logout">Выйти ↗</button></nav></header>
 <main>
 <section class="hero"><div class="hero-bottom"><div><div class="eyebrow">YOUR FRAGZONE SPACE</div><h1>Личный кабинет</h1><p id="welcome">Загружаем профиль и последние события…</p></div><span class="role-pill" id="rolePill">ACCOUNT</span></div></section>
 <div id="notice" class="notice" hidden aria-live="polite"></div>
@@ -87,15 +90,15 @@ body:before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opa
 <div class="columns">
 <section class="section"><div class="section-head"><h2>Последние обращения</h2><a href="/support/my-tickets.html">Все обращения →</a></div><div class="ticket-list" id="tickets"><div class="empty">Загружаем обращения…</div></div></section>
 <aside class="side-stack">
-<section class="card"><div class="eyebrow">PROFILE</div><h2 style="font-size:16px;margin:9px 0 15px">Твой профиль</h2><div class="profile"><div class="avatar" id="avatar">F</div><div><strong id="username">—</strong><small id="email">—</small></div></div><div class="quick-links"><a href="/support/">Создать обращение <span>↗</span></a><a href="/#catalog">Найти игровой сервер <span>↗</span></a><a href="/support/my-tickets.html">История обращений <span>↗</span></a><a id="adminQuickLink" href="/support/admin.html" hidden>Открыть админ-панель <span>↗</span></a></div></section>
-</section>
+<section class="card" id="settings"><div class="eyebrow">PROFILE</div><h2 style="font-size:16px;margin:9px 0 15px">Твой профиль</h2><div class="profile"><div class="avatar" id="avatar">F</div><div><strong id="username">—</strong><small id="profileRole">ИГРОК</small><small id="email">—</small></div></div><div class="quick-links"><a href="/community/">Игровые сообщества <span>↗</span></a><a href="/news/">Новости FRAGZONE <span>↗</span></a><a href="/support/">Создать обращение <span>↗</span></a><a href="/#catalog">Найти игровой сервер <span>↗</span></a><a href="/support/my-tickets.html">История обращений <span>↗</span></a><a id="adminQuickLink" href="/support/admin.html" hidden>Открыть админ-панель <span>↗</span></a><a id="ownerQuickLink" href="/support/owner.html" hidden>Открыть OWNER-панель <span>↗</span></a></div><form id="profileForm" class="profile-editor"><label>Имя<input name="username" minlength="2" maxlength="32" required></label><label>Ссылка на аватар (HTTPS)<input name="avatarUrl" type="url" maxlength="500" placeholder="https://..."></label><label>О себе<textarea name="bio" maxlength="300" rows="3" placeholder="Расскажи о себе"></textarea></label><button class="btn primary" type="submit">Сохранить профиль</button></form></section><section class="card"><div class="eyebrow">INBOX</div><h2 style="font-size:16px;margin:9px 0 12px">Уведомления</h2><div id="accountNotifications" class="account-notifications">Загружаем уведомления…</div></section>
+<section class="card" id="appearance"><div class="eyebrow">PROFILE STYLE</div><h2 style="font-size:16px;margin:9px 0">Скинченджер профиля</h2><p class="social-muted">Выбери цвет оформления профиля на этом устройстве.</p><div class="theme-choices"><button type="button" data-theme="violet">Фиолетовый</button><button type="button" data-theme="cyan">Неоновый синий</button><button type="button" data-theme="pink">Розовый</button><button type="button" data-theme="green">Лаймовый</button></div></section>
 <section class="card account-switcher">
  <div class="account-switcher-head"><div><div class="eyebrow">ACCOUNT HUB</div><h2 style="font-size:16px;margin:8px 0 0">Твои аккаунты</h2></div><small>На этом устройстве</small></div>
  <div class="account-list" id="savedAccounts"><div class="empty">Загружаем список аккаунтов…</div></div>
  <div class="account-actions"><button class="btn primary" id="createAnotherAccount" type="button">＋ Создать аккаунт</button></div>
  <p style="font-size:10px;line-height:1.5;color:var(--muted);margin:10px 0 0">Для переключения потребуется пароль. Пароли на устройстве не сохраняются.</p>
 </section>
-<section class="card favorites-card"><div class="eyebrow">YOUR COLLECTION</div><h2 style="font-size:16px;margin:9px 0">Избранное</h2><p>Список избранных серверов пока хранится в этом браузере. Открой каталог, чтобы добавить серверы в коллекцию.</p><a class="btn primary" href="/#catalog" style="display:inline-flex;margin-top:4px">Открыть каталог →</a></section>
+<section class="card favorites-card" id="storage"><div class="eyebrow">YOUR COLLECTION</div><h2 style="font-size:16px;margin:9px 0">Избранное</h2><p>Твои сохранённые серверы на этом устройстве.</p><div id="storageList" class="storage-list">Загружаем хранилище…</div><a class="btn primary" href="/#catalog" style="display:inline-flex;margin-top:4px">Открыть каталог →</a></section>
 </aside></div>
 </main><div class="footer"><span>FRAGZONE · PLAYER SPACE</span><span>GAME SERVERS / COMMUNITY / SUPPORT</span></div>
 </div>
@@ -137,17 +140,34 @@ async function init(){
   const user=me.user,level=Number(user.level||0),isAdmin=level>=1||user.isOwner||["admin","owner","helper","moderator","senior_moderator","administrator","head_admin"].includes(user.role);
   $("accountApp").hidden=false;
   $("welcome").textContent="Добро пожаловать, "+user.username+". Здесь твой профиль, обращения и быстрые действия.";
-  $("username").textContent=user.username;$("email").textContent=user.email;$("avatar").textContent=(user.username||"F").trim().charAt(0).toUpperCase();
+  $("username").textContent=user.username;$("email").textContent=user.email;$("avatar").textContent="";if(user.avatarUrl){const image=document.createElement("img");image.src=user.avatarUrl;image.alt="Аватар";image.referrerPolicy="no-referrer";image.style.cssText="width:100%;height:100%;object-fit:cover;border-radius:inherit";$("avatar").append(image)}else $("avatar").textContent=(user.username||"F").trim().charAt(0).toUpperCase();const pf=$("profileForm");pf.elements.username.value=user.username||"";pf.elements.avatarUrl.value=user.avatarUrl||"";pf.elements.bio.value=user.bio||"";
   $("rolePill").textContent=user.isOwner?"ВЛАДЕЛЕЦ":({helper:"HELPER",moderator:"MODERATOR",senior_moderator:"SENIOR MODERATOR",administrator:"ADMINISTRATOR",head_admin:"HEAD ADMINISTRATOR",admin:"ADMINISTRATOR"}[user.role]||"ИГРОК");
-  $("adminLink").hidden=!isAdmin;$("adminQuickLink").hidden=!isAdmin;
+  $("adminLink").hidden=!isAdmin;$("adminQuickLink").hidden=!isAdmin;$("ownerQuickLink").hidden=!user.isOwner;$("profileRole").textContent=user.isOwner?"♛ ВЛАДЕЛЕЦ":({helper:"✦ HELPER",moderator:"◆ MODERATOR",senior_moderator:"⬟ SENIOR MODERATOR",administrator:"⬡ АДМИНИСТРАТОР",head_admin:"♛ ГЛАВНЫЙ АДМИН",admin:"⬡ АДМИНИСТРАТОР"}[user.role]||"● ИГРОК");
   $("accountId").textContent=String(user.id||"").slice(0,8).toUpperCase()||"—";
   renderSavedAccounts(user);
-  try{const favs=JSON.parse(localStorage.getItem("fragzone_live_favs")||"[]");$("favoritesCount").textContent=Array.isArray(favs)?favs.length:0}catch{$("favoritesCount").textContent="—"}
+  const notificationData=await api("/notifications").catch(()=>({notifications:[]}));
+  $("accountNotifications").innerHTML=(notificationData.notifications||[]).map(item=>`<article class="account-notice ${item.is_read?"":"unread"}"><b>${esc(item.title)}</b><p>${esc(item.body)}</p><small>${esc(item.created_at)}</small><a href="${esc(item.href)}">Открыть →</a></article>`).join("")||'<p class="empty">Новых уведомлений нет.</p>';
+  try{const favs=JSON.parse(localStorage.getItem("fragzone_live_favs")||"[]");$("favoritesCount").textContent=Array.isArray(favs)?favs.length:0;$("storageList").innerHTML=Array.isArray(favs)&&favs.length?favs.map(slug=>'<div class="storage-item"><span>♡</span><b>'+esc(slug)+'</b><a href="/#catalog">Открыть каталог →</a></div>').join(""):'<p class="empty">Хранилище пока пусто. Добавляй серверы в избранное из каталога.</p>'}catch{$("favoritesCount").textContent="—";$("storageList").textContent="Не удалось прочитать хранилище."}
   const data=await api("/tickets"),items=Array.isArray(data.tickets)?data.tickets:[];
   $("ticketCount").textContent=items.length;
   $("tickets").innerHTML=items.length?items.slice(0,6).map(t=>'<a class="ticket" href="/support/my-ticket.html?id='+encodeURIComponent(t.id)+'"><span class="ticket-main"><strong>'+esc(t.subject)+'</strong><small>Обновлено: '+esc(t.updated_at||t.created_at||"—")+'</small></span><span class="pill '+(t.status==="closed"?"closed":"")+'">'+esc(statusNames[t.status]||t.status)+'</span></a>').join(""):'<div class="empty">Пока нет обращений. Создай первое обращение в центре поддержки — оно появится здесь.</div>';
  }catch(error){$("accountApp").hidden=false;showError(error.message);$("tickets").innerHTML='<div class="empty">Не удалось загрузить обращения.</div>'}
 }
+
+$("profileForm").addEventListener("submit",async event=>{
+ event.preventDefault();const form=event.currentTarget,button=form.querySelector("button");button.disabled=true;
+ try{const data=await api("/profile",{method:"PATCH",body:JSON.stringify({username:form.elements.username.value,avatarUrl:form.elements.avatarUrl.value,bio:form.elements.bio.value})});
+ $("username").textContent=data.profile.username;$("avatar").replaceChildren();
+ if(data.profile.avatarUrl){const image=document.createElement("img");image.src=data.profile.avatarUrl;image.alt="Аватар";image.style.cssText="width:100%;height:100%;object-fit:cover;border-radius:inherit";$("avatar").append(image)}else $("avatar").textContent=data.profile.username.slice(0,1).toUpperCase();
+ $("welcome").textContent="Профиль обновлён. Твои данные сохранены."; }catch(error){showError(error.message)}finally{button.disabled=false;}
+});
+
 $("logout").addEventListener("click",async()=>{const b=$("logout");b.disabled=true;try{await api("/auth/logout",{method:"POST",body:"{}"});location.replace("/")}catch(error){showError(error.message);b.disabled=false}});
+
+const themeColors={violet:"#a900ff",cyan:"#00d9ff",pink:"#ff38cf",green:"#baff45"};
+function applyAccountTheme(name){const color=themeColors[name]||themeColors.violet;document.documentElement.style.setProperty("--account-accent",color);localStorage.setItem("fragzone_account_theme",name);document.querySelectorAll("[data-theme]").forEach(b=>b.classList.toggle("selected",b.dataset.theme===name));}
+document.querySelectorAll("[data-theme]").forEach(b=>b.addEventListener("click",()=>applyAccountTheme(b.dataset.theme)));
+applyAccountTheme(localStorage.getItem("fragzone_account_theme")||"violet");
+
 init();
-</script><script src="/assets/cyber-ice.js" defer></script></body></html>
+</script><script src="/assets/cyber-ice.js" defer></script><script src="/assets/music-dock.js" defer></script></body></html>
