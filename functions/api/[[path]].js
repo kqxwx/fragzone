@@ -92,7 +92,7 @@ async function readBody(request){
 }
 async function currentUser(request,env){
  const token=getCookie(request);if(!token)return null;
- return env.DB.prepare("SELECT u.id,u.email,u.username,u.role,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN admin_roles ar ON ar.user_id=u.id WHERE s.token_hash=? AND s.expires_at>datetime('now') AND NOT EXISTS (SELECT 1 FROM punishments p WHERE p.user_id=u.id AND p.type='ban' AND p.active=1 AND (p.expires_at IS NULL OR p.expires_at>datetime('now')))").bind(await sha256(token)).first();
+ return env.DB.prepare("SELECT u.id,u.email,u.username,u.role,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN admin_roles ar ON ar.user_id=u.id WHERE s.token_hash=? AND s.expires_at>datetime('now') AND (lower(u.email)=lower(?) OR NOT EXISTS (SELECT 1 FROM punishments p WHERE p.user_id=u.id AND p.type='ban' AND p.active=1 AND (p.expires_at IS NULL OR p.expires_at>datetime('now'))))").bind(await sha256(token),clean(env.ADMIN_EMAIL,254)).first();
 }
 async function isMuted(userId,env){if(!userId)return false;const row=await env.DB.prepare("SELECT id FROM punishments WHERE user_id=? AND type='mute' AND active=1 AND (expires_at IS NULL OR expires_at > datetime('now')) LIMIT 1").bind(userId).first();return !!row;}
 async function createSession(userId,env){
@@ -141,7 +141,7 @@ async function handle(request,env){
   const user=await env.DB.prepare("SELECT * FROM users WHERE email=?").bind(email).first();
   if(!user)return fail("Неверный email или пароль",401);
   const activeBan=await env.DB.prepare("SELECT reason FROM punishments WHERE user_id=? AND type='ban' AND active=1 AND (expires_at IS NULL OR expires_at > datetime('now')) LIMIT 1").bind(user.id).first();
-  if(activeBan)return fail("Аккаунт заблокирован: "+activeBan.reason,403);
+  if(activeBan&&email!==clean(env.ADMIN_EMAIL,254).toLowerCase())return fail("Аккаунт заблокирован: "+activeBan.reason,403);
   const passwordCheck=await verifyPassword(password,user.password_hash);
   if(passwordCheck==="legacy")return fail("Для этого аккаунта требуется восстановление пароля: сохранённый хеш использует старый формат, несовместимый с бесплатным тарифом Cloudflare.",409);
   if(passwordCheck!==true)return fail("Неверный email или пароль",401);
