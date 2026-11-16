@@ -45,4 +45,6 @@
   dock.querySelector('input[type="range"]').addEventListener("input",event=>{if(master)master.gain.value=Number(event.target.value);});
   document.addEventListener("visibilitychange",()=>{if(document.hidden&&playing)pause();});
   update();
+  const heartbeat=()=>fetch("/api/presence",{method:"POST",credentials:"same-origin",cache:"no-store"}).catch(()=>{});
+  heartbeat();window.setInterval(heartbeat,60000);
 })();
