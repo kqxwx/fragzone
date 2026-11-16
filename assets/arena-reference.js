@@ -103,7 +103,7 @@
   const accountMenu = document.createElement("div");
   accountMenu.className = "fz-account-menu";
   accountMenu.hidden = true;
-  accountMenu.innerHTML = '<a href="/account/">◉ Профиль</a><a href="/account/#appearance">✦ Скинченджер</a><a href="/account/#storage">▣ Хранилище</a><a href="/community/">♧ Сообщества</a><a href="/news/">▤ Новости</a><a href="/support/">✉ Поддержка</a><a href="/support/admin.html" data-staff-link hidden>⬡ Админ-панель</a><a href="/support/owner.html" data-owner-link hidden>♛ Owner-панель</a><a href="/account/#settings">⚙ Настройки</a>';
+  accountMenu.innerHTML = '<a href="/account/">◉ Профиль</a><a href="/account/#appearance">✦ Скинченджер</a><a href="/account/#storage">▣ Хранилище</a><a href="/community/">♧ Сообщества</a><a href="/news/">▤ Новости</a><a href="/support/">✉ Поддержка</a><a href="/support/admin.html" data-staff-link hidden>⬡ Админ-панель</a><a href="/support/owner.html" data-owner-link hidden>♛ Owner-панель</a><a href="/account/#settings">⚙ Настройки</a><button type="button" data-fz-logout>↪ Выйти</button>';
   accountSlot.append(accountButton, accountMenu);
   const noticeSlot = document.createElement("div");
   noticeSlot.className = "fz-notice-slot";
@@ -137,7 +137,8 @@
       const role=loggedUser.isOwner?"ВЛАДЕЛЕЦ":({head_admin:"ГЛАВНЫЙ АДМИН",administrator:"АДМИНИСТРАТОР",senior_moderator:"СТАРШИЙ МОДЕРАТОР",moderator:"МОДЕРАТОР",helper:"ХЕЛПЕР"}[loggedUser.role]||"ИГРОК");
       const avatar=loggedUser.avatarUrl?'<img src="'+escapeText(loggedUser.avatarUrl)+'" alt="">':escapeText((loggedUser.username||"F").slice(0,1).toUpperCase());
       accountButton.innerHTML='<span class="fz-avatar">'+avatar+'</span><span class="fz-account-label"><b>'+escapeText(loggedUser.username)+'</b><small>'+role+'</small></span><span class="fz-chevron">⌄</span>';
-      accountMenu.querySelector("[data-staff-link]").hidden=!(Number(loggedUser.level||0)>=1||loggedUser.isOwner);
+      accountMenu.querySelector("[data-fz-logout]").addEventListener("click",async()=>{const button=accountMenu.querySelector("[data-fz-logout]");button.disabled=true;try{await fetch("/api/auth/logout",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:"{}"});location.reload();}catch(_){button.disabled=false;}});
+  accountMenu.querySelector("[data-staff-link]").hidden=!(Number(loggedUser.level||0)>=1||loggedUser.isOwner);
       accountMenu.querySelector("[data-owner-link]").hidden=!loggedUser.isOwner;
       await refreshNotifications();
     }catch(_){}
