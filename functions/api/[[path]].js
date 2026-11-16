@@ -310,7 +310,7 @@ async function handle(request,env){
   return json({users:rows.results});
  }
  if(path==="admin/punishments"&&method==="GET"){
-  const actor=await currentUser(request,env);if(!can(actor,env,3))return fail("Нужен уровень 3 или выше",403);
+  const actor=await currentUser(request,env);if(!can(actor,env,2))return fail("Нужен уровень 2 или выше",403);
   const rows=await env.DB.prepare("SELECT p.*,u.username AS target_username,u.email AS target_email,a.username AS actor_username FROM punishments p LEFT JOIN users u ON u.id=p.user_id LEFT JOIN users a ON a.id=p.actor_id ORDER BY p.created_at DESC LIMIT 300").all();
   return json({punishments:rows.results});
  }
