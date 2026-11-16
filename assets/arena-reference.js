@@ -145,7 +145,7 @@
   }
   noticeMenu.addEventListener("click",async event=>{
     if(event.target.closest("[data-read-all]")){await fetch("/api/notifications/read-all",{method:"POST",credentials:"same-origin"});await refreshNotifications();return;}
-    const item=event.target.closest("[data-notice-id]");if(item&&!item.href.endsWith("#"))fetch("/api/notifications/"+encodeURIComponent(item.dataset.noticeId),{method:"PATCH",credentials:"same-origin"});
+    const item=event.target.closest("[data-notice-id]");if(item){event.preventDefault();await fetch("/api/notifications/"+encodeURIComponent(item.dataset.noticeId),{method:"PATCH",credentials:"same-origin"}).catch(()=>{});location.href=item.href;}
   });
   refreshAccount();
   setInterval(refreshAccount,60000);
