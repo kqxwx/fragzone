@@ -118,7 +118,7 @@ async function admin(){
   const level=Number(me.user.level||0),owner=!!me.user.isOwner,wrap=$("#staffTools");
   if(!wrap||(!owner&&level<2)){if(wrap)wrap.hidden=true;return;}
   wrap.hidden=false;$("#staffLevelBadge").textContent=owner?"OWNER":"LEVEL "+level;
-  $("#staffToolsHint").textContent=level>=5||owner?"Мут, бан, WARN, снятие наказаний и журнал.":level>=4?"Мут и бан; просмотр истории с уровня 3.":"Мут пользователей и работа с тикетами.";
+  $("#staffToolsHint").textContent=owner?"Все наказания, история, снятие наказаний и журнал.":level>=5?"Мут, WARN, бан, снятие наказаний и журнал.":level>=4?"Мут и WARN, бан, история и тикеты.":level>=3?"Мут и WARN, история наказаний, журнал и тикеты.":"Мут и WARN, история наказаний и тикеты.";
   const data=await api("/admin/moderation/users"),targets=data.users||[];
   $("#staffTarget").innerHTML='<option value="">Выбери пользователя</option>'+targets.map(u=>'<option value="'+esc(u.id)+'">'+esc(u.username)+' — '+esc(u.email)+'</option>').join("");
   const type=$("#staffPunishType");
