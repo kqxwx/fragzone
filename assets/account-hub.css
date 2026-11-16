@@ -38,3 +38,4 @@ body{padding-bottom:76px}
 @media(max-width:420px){.fz-music-volume{display:none}.fz-account-menu{width:210px}}
 
 @media(max-width:760px){.topbar .top-right{display:flex;flex-wrap:wrap;overflow:visible;justify-content:space-between}.topbar .top-right .search{order:0;flex:1 1 100%;max-width:none;min-width:100%}.topbar .top-right .lang{margin-left:auto}.fz-account-menu,.fz-notice-menu{z-index:2000}}
+.fz-account-menu [data-fz-logout]{display:flex;align-items:center;width:100%;padding:11px;border:0;border-radius:9px;background:transparent;color:#ff9ba9;font-size:11px;font-weight:800;text-align:left;cursor:pointer}.fz-account-menu [data-fz-logout]:hover{background:#9c234733}
