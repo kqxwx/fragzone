@@ -71,11 +71,13 @@ body:before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opa
 .btn.primary{background:var(--green);color:#11140a;box-shadow:0 8px 28px #d9ff3f28}.nav-link,.btn{border-radius:11px}
 @media(max-width:620px){.hero:after{right:-12%;font-size:130px;top:70%}}
 
+
+.profile-editor{display:grid;gap:9px;margin-top:14px}.profile-editor label{display:grid;gap:5px;color:#aaa5bf;font-size:9px}.profile-editor input,.profile-editor textarea{width:100%;min-width:0;padding:9px;border:1px solid #483665;border-radius:9px;background:#090d1b;color:white;font:inherit;font-size:10px}.profile-editor textarea{resize:vertical}.account-notifications{display:grid;gap:8px}.account-notice{padding:10px;border:1px solid #ffffff15;border-radius:10px;background:#0d1222}.account-notice.unread{border-color:#a642db;background:#241139}.account-notice b{font-size:11px}.account-notice p{font-size:10px;color:#c1bbd1;line-height:1.5}.account-notice small{font-size:8px;color:#8f88a6}.account-notice a{display:block;margin-top:6px;color:#dc9bff;font-size:9px}
 </style>
-<link rel="stylesheet" href="/assets/cyber-ice.css">
+<link rel="stylesheet" href="/assets/cyber-ice.css">\n<link rel="stylesheet" href="/assets/account-hub.css">
 <link rel="stylesheet" href="/assets/cyber-ice.css"></head>
 <body><div class="wrap" id="accountApp" hidden>
-<header><a class="logo" href="/">FRAG<span>ZONE</span></a><nav><a class="nav-link" href="/">Каталог серверов</a><a class="nav-link" href="/support/">Поддержка</a><a class="nav-link admin" id="adminLink" href="/support/admin.html" hidden>⚙ Админ-панель</a><button class="btn" id="logout">Выйти ↗</button></nav></header>
+<header><a class="logo" href="/">FRAG<span>ZONE</span></a><nav><a class="nav-link" href="/">Каталог серверов</a><a class="nav-link" href="/community/">Сообщества</a><a class="nav-link" href="/news/">Новости</a><a class="nav-link" href="/support/">Поддержка</a><a class="nav-link admin" id="adminLink" href="/support/admin.html" hidden>⚙ Админ-панель</a><button class="btn" id="logout">Выйти ↗</button></nav></header>
 <main>
 <section class="hero"><div class="hero-bottom"><div><div class="eyebrow">YOUR FRAGZONE SPACE</div><h1>Личный кабинет</h1><p id="welcome">Загружаем профиль и последние события…</p></div><span class="role-pill" id="rolePill">ACCOUNT</span></div></section>
 <div id="notice" class="notice" hidden aria-live="polite"></div>
@@ -87,7 +89,7 @@ body:before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opa
 <div class="columns">
 <section class="section"><div class="section-head"><h2>Последние обращения</h2><a href="/support/my-tickets.html">Все обращения →</a></div><div class="ticket-list" id="tickets"><div class="empty">Загружаем обращения…</div></div></section>
 <aside class="side-stack">
-<section class="card"><div class="eyebrow">PROFILE</div><h2 style="font-size:16px;margin:9px 0 15px">Твой профиль</h2><div class="profile"><div class="avatar" id="avatar">F</div><div><strong id="username">—</strong><small id="email">—</small></div></div><div class="quick-links"><a href="/support/">Создать обращение <span>↗</span></a><a href="/#catalog">Найти игровой сервер <span>↗</span></a><a href="/support/my-tickets.html">История обращений <span>↗</span></a><a id="adminQuickLink" href="/support/admin.html" hidden>Открыть админ-панель <span>↗</span></a></div></section>
+<section class="card"><div class="eyebrow">PROFILE</div><h2 style="font-size:16px;margin:9px 0 15px">Твой профиль</h2><div class="profile"><div class="avatar" id="avatar">F</div><div><strong id="username">—</strong><small id="email">—</small></div></div><div class="quick-links"><a href="/community/">Игровые сообщества <span>↗</span></a><a href="/news/">Новости FRAGZONE <span>↗</span></a><a href="/support/">Создать обращение <span>↗</span></a><a href="/#catalog">Найти игровой сервер <span>↗</span></a><a href="/support/my-tickets.html">История обращений <span>↗</span></a><a id="adminQuickLink" href="/support/admin.html" hidden>Открыть админ-панель <span>↗</span></a></div></section>
 </section>
 <section class="card account-switcher">
  <div class="account-switcher-head"><div><div class="eyebrow">ACCOUNT HUB</div><h2 style="font-size:16px;margin:8px 0 0">Твои аккаунты</h2></div><small>На этом устройстве</small></div>
@@ -137,17 +139,25 @@ async function init(){
   const user=me.user,level=Number(user.level||0),isAdmin=level>=1||user.isOwner||["admin","owner","helper","moderator","senior_moderator","administrator","head_admin"].includes(user.role);
   $("accountApp").hidden=false;
   $("welcome").textContent="Добро пожаловать, "+user.username+". Здесь твой профиль, обращения и быстрые действия.";
-  $("username").textContent=user.username;$("email").textContent=user.email;$("avatar").textContent=(user.username||"F").trim().charAt(0).toUpperCase();
+  $("username").textContent=user.username;$("email").textContent=user.email;$("avatar").textContent="";if(user.avatarUrl){const image=document.createElement("img");image.src=user.avatarUrl;image.alt="Аватар";image.referrerPolicy="no-referrer";image.style.cssText="width:100%;height:100%;object-fit:cover;border-radius:inherit";$("avatar").append(image)}else $("avatar").textContent=(user.username||"F").trim().charAt(0).toUpperCase();const pf=$("profileForm");pf.elements.username.value=user.username||"";pf.elements.avatarUrl.value=user.avatarUrl||"";pf.elements.bio.value=user.bio||"";
   $("rolePill").textContent=user.isOwner?"ВЛАДЕЛЕЦ":({helper:"HELPER",moderator:"MODERATOR",senior_moderator:"SENIOR MODERATOR",administrator:"ADMINISTRATOR",head_admin:"HEAD ADMINISTRATOR",admin:"ADMINISTRATOR"}[user.role]||"ИГРОК");
   $("adminLink").hidden=!isAdmin;$("adminQuickLink").hidden=!isAdmin;
   $("accountId").textContent=String(user.id||"").slice(0,8).toUpperCase()||"—";
-  renderSavedAccounts(user);
+  renderSavedAccounts(user);\n  try{const n=await api("/notifications");$("accountNotifications").innerHTML=(n.notifications||[]).map(x=>"<article class=\\"account-notice "+(!x.is_read?"unread":"")+"\\"><b>"+esc(x.title)+"</b><p>"+esc(x.body)+"</p><small>"+esc(x.created_at)+"</small><a href=\\""+esc(x.href)+"\\">Открыть →</a></article>").join("")||"<p class=\\"empty\\">Новых уведомлений нет.</p>";}catch(e){$("accountNotifications").textContent=e.message;}
   try{const favs=JSON.parse(localStorage.getItem("fragzone_live_favs")||"[]");$("favoritesCount").textContent=Array.isArray(favs)?favs.length:0}catch{$("favoritesCount").textContent="—"}
   const data=await api("/tickets"),items=Array.isArray(data.tickets)?data.tickets:[];
   $("ticketCount").textContent=items.length;
   $("tickets").innerHTML=items.length?items.slice(0,6).map(t=>'<a class="ticket" href="/support/my-ticket.html?id='+encodeURIComponent(t.id)+'"><span class="ticket-main"><strong>'+esc(t.subject)+'</strong><small>Обновлено: '+esc(t.updated_at||t.created_at||"—")+'</small></span><span class="pill '+(t.status==="closed"?"closed":"")+'">'+esc(statusNames[t.status]||t.status)+'</span></a>').join(""):'<div class="empty">Пока нет обращений. Создай первое обращение в центре поддержки — оно появится здесь.</div>';
  }catch(error){$("accountApp").hidden=false;showError(error.message);$("tickets").innerHTML='<div class="empty">Не удалось загрузить обращения.</div>'}
 }
-$("logout").addEventListener("click",async()=>{const b=$("logout");b.disabled=true;try{await api("/auth/logout",{method:"POST",body:"{}"});location.replace("/")}catch(error){showError(error.message);b.disabled=false}});
+
+$("profileForm").addEventListener("submit",async event=>{
+ event.preventDefault();const form=event.currentTarget,button=form.querySelector("button");button.disabled=true;
+ try{const data=await api("/profile",{method:"PATCH",body:JSON.stringify({username:form.elements.username.value,avatarUrl:form.elements.avatarUrl.value,bio:form.elements.bio.value})});
+ $("username").textContent=data.profile.username;$("avatar").replaceChildren();
+ if(data.profile.avatarUrl){const image=document.createElement("img");image.src=data.profile.avatarUrl;image.alt="Аватар";image.style.cssText="width:100%;height:100%;object-fit:cover;border-radius:inherit";$("avatar").append(image)}else $("avatar").textContent=data.profile.username.slice(0,1).toUpperCase();
+ $("welcome").textContent="Профиль обновлён. Твои данные сохранены."; }catch(error){showError(error.message)}finally{button.disabled=false;}
+});
+\n$("logout").addEventListener("click",async()=>{const b=$("logout");b.disabled=true;try{await api("/auth/logout",{method:"POST",body:"{}"});location.replace("/")}catch(error){showError(error.message);b.disabled=false}});
 init();
-</script><script src="/assets/cyber-ice.js" defer></script></body></html>
+</script><script src="/assets/cyber-ice.js" defer></script><script src="/assets/music-dock.js" defer></script></body></html>
