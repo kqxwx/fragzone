@@ -161,3 +161,129 @@ footer a{color:#dfff68}
  .hero:before{right:-95px;opacity:.8}
  .mobile-dock{background:rgba(24,22,48,.97)!important}
 }
+
+
+/* FRAGZONE WORLD SYSTEM — one electric esports identity on every route */
+:root{
+ --bg:#080615;--panel:#15112b;--panel2:#21183d;--line:#59418a;
+ --text:#fbf8ff;--muted:#b9afd5;--green:#caff35;--red:#ff477f;
+ --fz-blue:#35cfff;--fz-pink:#ff32b8;--fz-violet:#8a38ff;
+ color-scheme:dark;
+}
+html,body{background-color:#080615;color:#fbf8ff}
+body{
+ background:
+ radial-gradient(ellipse 58% 42% at 82% -5%,#6028d65c,transparent 70%),
+ radial-gradient(ellipse 44% 45% at 0% 35%,#f02b9c30,transparent 72%),
+ radial-gradient(ellipse 48% 40% at 92% 92%,#0759c833,transparent 72%),
+ #080615!important;
+}
+body:before{
+ opacity:.18!important;
+ background-image:linear-gradient(#9e7bff13 1px,transparent 1px),linear-gradient(90deg,#9e7bff13 1px,transparent 1px)!important;
+ background-size:32px 32px!important;
+}
+a{transition:color .2s ease,text-shadow .2s ease}
+a:hover{color:#e4ff75}
+button,.fz-btn,.owner-button,.section-actions a{transition:transform .2s ease,filter .2s ease,box-shadow .2s ease}
+button:hover,.fz-btn:hover,.owner-button:hover,.section-actions a:hover{filter:brightness(1.12);box-shadow:0 0 24px #923fff45}
+:focus-visible{outline:2px solid #d5ff3f!important;outline-offset:3px}
+.sidebar{
+ background:linear-gradient(180deg,#17102e 0%,#0c0a20 100%)!important;
+ border-color:#8b48ff77!important;box-shadow:12px 0 48px #03010d99, inset -1px 0 #ff39bd22!important;
+}
+.sidebar>.logo .brand-word span,.logo span{color:#ed42ff!important;text-shadow:0 0 18px #ed42ff99}
+.sidebar .side-title{color:#aa8cdb!important}
+.sidebar .nav button,.sidebar .nav .nav-link{color:#ded4f7!important}
+.sidebar .nav button:hover,.sidebar .nav .nav-link:hover{
+ background:linear-gradient(100deg,#743bff55,#ff36b833)!important;border-color:#b36bff88!important;
+ box-shadow:0 7px 28px #743bff35!important;color:#fff!important;
+}
+.sidebar .nav button.active,.sidebar .nav .nav-link.active{
+ background:linear-gradient(105deg,#873cff88,#e72cb855 72%,#caff3520)!important;
+ border-color:#c38aff!important;box-shadow:inset 3px 0 #caff35,0 0 26px #803bff44!important;color:#fff!important;
+}
+.sidebar .nav .nav-icon{background:#ffffff12!important;border-color:#ffffff2a!important;color:#e5d5ff!important}
+.topbar,.fz-head,.owner-nav,.owner-top,.section-back{
+ background:linear-gradient(100deg,#100b24eF,#17102eeF)!important;
+ border-color:#8b48ff55!important;box-shadow:0 8px 34px #03010d66;
+}
+.topbar{backdrop-filter:blur(22px)}
+.site-url,.lang,.top-button,.owner-nav-link,.section-back a{
+ background:linear-gradient(130deg,#30205b,#1a2042)!important;border:1px solid #9a65ff88!important;color:#fff!important;
+}
+.content,.section-wrap,.fz-wrap,.owner-shell,.wrap{position:relative;z-index:1}
+.content{max-width:1660px!important}
+.hero,.section-hero,.owner-hero,.fz-admin-hero{
+ border:1px solid #a45cffaa!important;border-radius:24px!important;
+ background:
+ radial-gradient(ellipse at 82% 22%,#ff35bd75,transparent 31%),
+ radial-gradient(ellipse at 73% 100%,#753cff88,transparent 44%),
+ linear-gradient(112deg,#21134b 0%,#19143c 50%,#35134c 100%)!important;
+ box-shadow:0 26px 90px #03010dbb,0 0 40px #843bff35!important;
+}
+.hero:before,.section-hero:before,.owner-hero:before{
+ background:conic-gradient(from 25deg,#caff35,#25cfff,#ed39ff,#ff3e9c,#caff35)!important;
+ box-shadow:0 0 85px #9d3cff99!important;opacity:.86!important;
+}
+.hero:after,.section-hero:after{color:#ffffff18!important;text-shadow:0 8px 38px #03010d}
+.hero h1,.section-hero h1,.owner-hero h1,.fz-admin-hero h1{color:#fff!important;text-shadow:0 5px 34px #05020d99}
+.hero p,.section-hero p,.owner-hero p{color:#e0d6fa!important}
+.eyebrow,.section-kicker,.fz-eyebrow,.fz-head-label,.owner-kicker{
+ color:#d9ff62!important;background:#caff3518;border-color:#caff3566!important;
+}
+.primary,.fz-btn:not(.fz-btn-ghost),.owner-button,.section-actions a:not(.fz-btn-ghost){
+ background:linear-gradient(105deg,#dfff63,#caff35 48%,#a9f04b)!important;color:#17102b!important;
+ box-shadow:0 8px 30px #caff3548!important;
+}
+.secondary,.section-actions a.fz-btn-ghost,.fz-btn-ghost{
+ background:linear-gradient(120deg,#ffffff16,#963fff2b)!important;border:1px solid #bd94ff88!important;color:#fff!important;
+}
+.stat,.popular-game,.section-card,.fz-panel,.fz-stat,.fz-ticket,.fz-admin-ticket,.owner-card,.owner-stat,.account-panel{
+ background:linear-gradient(145deg,#241a43,#141129)!important;border:1px solid #8153c777!important;
+ box-shadow:0 14px 38px #03010d77,inset 0 1px #ffffff12!important;border-radius:17px!important;
+}
+.stat:nth-child(4n+1){border-top:2px solid #caff35!important}
+.stat:nth-child(4n+2){border-top:2px solid #28d5ff!important}
+.stat:nth-child(4n+3){border-top:2px solid #ff3cb8!important}
+.stat:nth-child(4n){border-top:2px solid #a36bff!important}
+.stat-head,.section-card p,.fz-ticket span,.fz-admin-ticket small{color:#c2b6e0!important}
+.stat-value{color:#fff!important;text-shadow:0 0 25px #a04dff55}
+.popular-game:hover,.popular-game.active,.section-card:hover,.fz-ticket:hover,.fz-admin-ticket:hover{
+ border-color:#d1ff49!important;box-shadow:0 16px 40px #743bff55,0 0 0 1px #d1ff4922!important;
+}
+.popular-game:nth-child(4n+1) .popular-game-icon{background:linear-gradient(140deg,#e7ff66,#65e88d)!important}
+.popular-game:nth-child(4n+2) .popular-game-icon{background:linear-gradient(140deg,#55d9ff,#6755f3)!important}
+.popular-game:nth-child(4n+3) .popular-game-icon{background:linear-gradient(140deg,#ff80cf,#e536a9)!important}
+.popular-game:nth-child(4n) .popular-game-icon{background:linear-gradient(140deg,#d2a0ff,#7d42e8)!important}
+.search input,.toolbar select,input,textarea,select{
+ background:#100e27!important;border-color:#67489c!important;color:#fff!important;
+}
+input::placeholder,textarea::placeholder{color:#a99cc9!important}
+input:focus,textarea:focus,select:focus{border-color:#c17aff!important;box-shadow:0 0 0 3px #943dff30!important}
+.project-tabs button,.view-tabs button,.actions button,.pagination button{
+ background:#28204a!important;border-color:#7759a8!important;color:#f4edff!important;
+}
+.project-tabs button.active,.view-tabs button.active{background:linear-gradient(110deg,#7844ff88,#ed35ad55)!important;border-color:#c18bff!important;color:#fff!important}
+.table-wrap{background:linear-gradient(145deg,#19132f,#100e23)!important;border-color:#8153c7!important;box-shadow:0 18px 50px #03010d99!important}
+th{background:#2a1d4b!important;color:#d4c2fa!important;border-color:#ffffff20!important}
+td{color:#f2ecff!important;border-color:#ffffff16!important}
+tr:hover td{background:#8c4dff22!important}
+.project-tag{background:#7543b655!important;color:#e2d0ff!important}
+.project-tag.cyber{background:#1476a955!important;color:#a5eaff!important}
+.project-tag.fear{background:#a32b7955!important;color:#ffb8e2!important}
+.project-tag.other{background:#667d2855!important;color:#e4ff9c!important}
+.online{color:#caff35!important}.offline{color:#ff628d!important}
+.fz-wrap h1,.fz-wrap h2,.owner-shell h1,.owner-shell h2,.wrap h1,.wrap h2{color:#fff}
+.fz-head a,.fz-link,.fz-head-nav a{color:#d8c8ff!important}
+.fz-field label,label{color:#c5b8e3!important}
+.fz-ticket,.fz-admin-ticket{color:#fff!important}
+.notice{background:#8c3cff20!important;border-color:#a96aff!important;color:#f7efff!important}
+.fz-owner-badge{background:#caff3520!important;color:#dfff75!important;border-color:#caff3577!important}
+.fz-admin-badge{background:#9b50ff25!important;color:#d6baff!important;border-color:#9b50ff77!important}
+footer,.owner-footer{color:#a99cc9!important;border-color:#ffffff20!important}
+@media(max-width:760px){
+ .hero,.section-hero,.owner-hero{border-radius:19px!important}
+ .fz-wrap,.owner-shell,.wrap{padding-bottom:calc(38px + env(safe-area-inset-bottom))}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
