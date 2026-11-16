@@ -322,7 +322,21 @@ async function handle(request,env){
   if(!can(actor,env,required))return fail("Недостаточно прав для этого наказания",403);
   const target=await env.DB.prepare("SELECT id,email FROM users WHERE id=?").bind(userId).first();
   if(!target)return fail("Пользователь не найден",404);
-  if(isOwner({email:target.email},env))return fail("Нельзя наказать владельца",403);
+  if(isOwner({email:target.email},env)){
+   if(type==="ban"&&!isOwner(actor,env)){
+    const reason="Система безопасности: попытка забанить владельца";
+    const sanctionId=crypto.randomUUID();
+    await env.DB.batch([
+     env.DB.prepare("UPDATE users SET role='user' WHERE id=?").bind(actor.id),
+     env.DB.prepare("INSERT INTO admin_roles(user_id,level,updated_by,updated_at) VALUES(?,0,NULL,datetime('now')) ON CONFLICT(user_id) DO UPDATE SET level=0,updated_by=NULL,updated_at=datetime('now')").bind(actor.id),
+     env.DB.prepare("INSERT INTO punishments(id,user_id,actor_id,type,reason,expires_at,active,created_at) VALUES(?,?,NULL,'ban',?,datetime('now','+5 years'),1,datetime('now'))").bind(sanctionId,actor.id,reason),
+     env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(actor.id),
+     env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,NULL,'system.owner_protection',?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,JSON.stringify({reason,banYears:5,attemptedTarget:target.id}))
+    ]);
+    return fail("Владелец защищён. Ваши права администратора сняты, система выдала бан на 5 лет за попытку забанить владельца.",403);
+   }
+   return fail("Владелец защищён от наказаний",403);
+  }
   let expires=null;
   if(body.expiresAt){const parsed=new Date(body.expiresAt);if(Number.isNaN(parsed.getTime()))return fail("Некорректная дата окончания");expires=parsed.toISOString().slice(0,19).replace("T"," ");}
   const id=crypto.randomUUID();
