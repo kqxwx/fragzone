@@ -65,7 +65,6 @@ $("#broadcastForm").onsubmit=async e=>{
  catch(error){say(error.message,true)}finally{button.disabled=false;}
 };
 
-load().catch(e=>say(e.message,true));
 $("#staffSearch").oninput=renderStaff;$("#userSearch").oninput=renderUsers;$("#ticketSearch").oninput=renderTickets;$("#ticketFilter").onchange=renderTickets;
 $("#staffList").onclick=async e=>{
  const b=e.target.closest("button");if(!b)return;
