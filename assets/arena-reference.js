@@ -117,7 +117,7 @@
   const closeMenus=event=>{if(!accountSlot.contains(event.target))accountMenu.hidden=true;if(!noticeSlot.contains(event.target))noticeMenu.hidden=true;};
   document.addEventListener("click",closeMenus);
   accountButton.addEventListener("click",event=>{event.stopPropagation();accountMenu.hidden=!accountMenu.hidden;noticeMenu.hidden=true;});
-  noticeButton.addEventListener("click",async event=>{event.stopPropagation();noticeMenu.hidden=!noticeMenu.hidden;accountMenu.hidden=true;});
+  noticeButton.addEventListener("click",async event=>{event.stopPropagation();noticeMenu.hidden=!noticeMenu.hidden;accountMenu.hidden=true;if(!noticeMenu.hidden)await refreshNotifications();});
   const escapeText=value=>String(value??"").replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
   let loggedUser=null;
   async function refreshAccount(){
