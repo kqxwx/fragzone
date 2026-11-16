@@ -163,6 +163,7 @@ async function handle(request,env){
   const id=crypto.randomUUID(),guestKey=user?null:randomHex(32),author=user?user.username:guestName;
   await env.DB.prepare("INSERT INTO tickets(id,user_id,guest_name,guest_email,access_hash,subject,status,priority,created_at,updated_at) VALUES(?,?,?,?,?,?,'open','normal',datetime('now'),datetime('now'))").bind(id,user?.id||null,user?null:guestName,user?null:guestEmail,guestKey?await sha256(guestKey):null,subject).run();
   await env.DB.prepare("INSERT INTO comments(id,ticket_id,user_id,author_name,body,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),id,user?.id||null,author,message).run();
+  if(isAdmin(user,env)&&ticket.user_id&&ticket.user_id!==user.id){await env.DB.prepare("INSERT INTO notifications(id,user_id,title,body,href,kind,created_at) VALUES(?,?,?,?,?,'support',datetime('now'))").bind(crypto.randomUUID(),ticket.user_id,"Ответ поддержки",ticket.subject,"/support/my-ticket.html?id="+encodeURIComponent(id)).run();}
   const ticketUrl="/support/ticket.html?id="+encodeURIComponent(id)+(guestKey?"&key="+encodeURIComponent(guestKey):"");
   return json({ticket:{id,subject,status:"open",url:ticketUrl}},201);
  }
@@ -266,16 +267,17 @@ async function handle(request,env){
 
  if(path==="admin/dashboard"&&method==="GET"){
   const actor=await currentUser(request,env);if(!isAdmin(actor,env))return fail("Требуется доступ администрации",403);
-  const [users,tickets,open,warns,bans,staff,sessions]=await Promise.all([
+  const [users,tickets,open,warns,bans,staff,sessions,online]=await Promise.all([
    env.DB.prepare("SELECT COUNT(*) AS n FROM users").first(),
    env.DB.prepare("SELECT COUNT(*) AS n FROM tickets").first(),
    env.DB.prepare("SELECT COUNT(*) AS n FROM tickets WHERE status IN ('open','in_progress')").first(),
    env.DB.prepare("SELECT COUNT(*) AS n FROM punishments WHERE type='warn' AND active=1").first(),
    env.DB.prepare("SELECT COUNT(*) AS n FROM punishments WHERE type='ban' AND active=1").first(),
    env.DB.prepare("SELECT COUNT(*) AS n FROM admin_roles WHERE level>0").first(),
-   env.DB.prepare("SELECT COUNT(*) AS n FROM sessions WHERE expires_at>datetime('now')").first()
+   env.DB.prepare("SELECT COUNT(*) AS n FROM sessions WHERE expires_at>datetime('now')").first(),
+    env.DB.prepare("SELECT COUNT(*) AS n FROM presence WHERE last_seen>=datetime('now','-5 minutes')").first()
   ]);
-  return json({stats:{users:users?.n||0,tickets:tickets?.n||0,openTickets:open?.n||0,warns:warns?.n||0,bans:bans?.n||0,staff:staff?.n||0,activeSessions:sessions?.n||0},me:viewUser(actor,env)});
+  return json({stats:{users:users?.n||0,tickets:tickets?.n||0,openTickets:open?.n||0,warns:warns?.n||0,bans:bans?.n||0,staff:staff?.n||0,activeSessions:sessions?.n||0,online:online?.n||0},me:viewUser(actor,env)});
  }
  if(path==="admin/staff"&&method==="GET"){
   const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец может управлять уровнями",403);
