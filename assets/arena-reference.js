@@ -18,10 +18,10 @@
 
   const renderGameRail = () => {
     const list = document.getElementById("arenaGameList");
-    if (!list || !Array.isArray(window.games)) return;
-    list.innerHTML = window.games.slice(0, 8).map(game => {
+    if (!list || typeof games === "undefined" || !Array.isArray(games)) return;
+    list.innerHTML = games.slice(0, 8).map(game => {
       const image = game.image || (game.app ? 'https://cdn.akamai.steamstatic.com/steam/apps/' + game.app + '/library_600x900.jpg' : '');
-      return '<button type="button" class="arena-game-link ' + (game.id === window.currentGame ? 'active' : '') + '" data-arena-game="' + game.id + '">' +
+      return '<button type="button" class="arena-game-link ' + (game.id === currentGame ? 'active' : '') + '" data-arena-game="' + game.id + '">' +
         (image ? '<img loading="lazy" src="' + image + '" alt="">' : '') +
         '<span>' + game.name.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</span></button>';
     }).join("");
@@ -63,7 +63,7 @@
   }
   const sync = () => {
     renderGameRail();
-    document.querySelectorAll(".arena-game-link").forEach(button => button.classList.toggle("active", button.dataset.arenaGame === window.currentGame));
+    document.querySelectorAll(".arena-game-link").forEach(button => button.classList.toggle("active", button.dataset.arenaGame === currentGame));
   };
   document.getElementById("popularGames")?.addEventListener("click", () => setTimeout(sync, 0));
   document.querySelector(".view-tabs")?.addEventListener("click", () => setTimeout(sync, 0));
