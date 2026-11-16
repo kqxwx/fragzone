@@ -13,7 +13,7 @@ async function load(){
  ]);
  const s=dash.stats;$("#statUsers").textContent=s.users;$("#statTickets").textContent=s.tickets;$("#statOpen").textContent=s.openTickets;$("#statStaff").textContent=s.staff;$("#statWarns").textContent=s.warns;$("#statBans").textContent=s.bans;$("#statSessions").textContent=s.activeSessions??"—";
  staff=staffData.staff||[];users=userData.users||[];tickets=ticketData.tickets||[];punishments=ps.punishments||[];
- renderStaff();renderUsers();renderTickets();renderPunishments();renderAudit(logs.logs||[]);renderSettings(settings.settings||[]);
+ renderStaff();renderUsers();renderTickets();renderPunishments();renderAudit(logs.logs||[]);renderSettings(settings.settings||[]);\n const newsData=await api("/admin/news");renderNews(newsData.news||[]);
 }
 function renderStaff(){
  const q=$("#staffSearch").value.toLowerCase(),rows=staff.filter(u=>(u.username+" "+u.email).toLowerCase().includes(q));
@@ -33,11 +33,29 @@ function renderPunishments(){
  $("#punishmentList").innerHTML='<table class="owner-table"><thead><tr><th>Пользователь</th><th>Тип</th><th>Причина</th><th>Выдал</th><th>Статус</th><th></th></tr></thead><tbody>'+punishments.map(p=>'<tr><td>'+esc(p.target_username||p.target_email||p.user_id)+'</td><td>'+esc(p.type.toUpperCase())+'</td><td>'+esc(p.reason)+'</td><td>'+esc(p.actor_username||"—")+'</td><td>'+(p.active?"Активно":"Снято")+'</td><td>'+(p.active?'<button class="fz-btn fz-btn-ghost" data-revoke-punishment="'+esc(p.id)+'">Снять</button>':"—")+'</td></tr>').join("")+'</tbody></table>';
 }
 function renderAudit(logs){$("#auditList").innerHTML='<table class="owner-table"><thead><tr><th>Дата</th><th>Сотрудник</th><th>Действие</th><th>Объект</th><th>Детали</th></tr></thead><tbody>'+logs.map(l=>'<tr><td>'+esc(l.created_at)+'</td><td>'+esc(l.actor_username||"Удалённый аккаунт")+'</td><td>'+esc(l.action)+'</td><td>'+esc(l.target_id||"—")+'</td><td>'+esc(l.details)+'</td></tr>').join("")+'</tbody></table>';}
+function renderNews(items){
+ const root=$("#newsList");if(!root)return;
+ root.innerHTML=items.map(n=>'<div class="owner-row"><div><b>'+esc(n.title)+'</b><small>'+(n.is_published?'Опубликована':'Черновик')+' · '+esc(n.created_at)+'</small></div><div class="owner-actions"><button class="fz-btn fz-btn-ghost" data-news-publish="'+esc(n.id)+'" data-published="'+(n.is_published?0:1)+'">'+(n.is_published?'Снять с публикации':'Опубликовать')+'</button><button class="fz-btn owner-danger" data-news-delete="'+esc(n.id)+'">Удалить</button></div></div>').join("")||'<p class="owner-muted">Новостей пока нет.</p>';
+}
 function renderSettings(rows){const v=Object.fromEntries(rows.map(x=>[x.key,x.value]));$("#maintenance").value=v.maintenance_mode||"false";$("#registration").value=v.registration_enabled||"true";$("#supportEnabled").value=v.support_enabled||"true";$("#maintenanceMessage").value=v.maintenance_message||"Сайт временно недоступен. Попробуйте зайти позже.";$("#announcement").value=v.announcement||"";$("#announcementEnabled").value=v.announcement_enabled||"false";}
 async function saveSetting(key,value){await api("/admin/settings",{method:"PATCH",body:JSON.stringify({key,value})});say("Настройка сохранена");}
 $("#loginForm").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.currentTarget),b=e.currentTarget.querySelector('button[type="submit"]');b.disabled=true;b.textContent="Входим…";try{await api("/admin/login",{method:"POST",body:JSON.stringify({email:f.get("email"),password:f.get("password")})});await load();}catch(err){say(err.message,true);}finally{b.disabled=false;b.textContent="Войти";}};
 $("#logout").onclick=async()=>{await api("/auth/logout",{method:"POST",body:"{}"});location.reload();};
-$("#refresh").onclick=()=>load().catch(e=>say(e.message,true));
+$("#refresh").onclick=()=>
+$("#newsForm").onsubmit=async e=>{
+ e.preventDefault();const button=e.currentTarget.querySelector('button[type="submit"]');button.disabled=true;
+ try{await api("/admin/news",{method:"POST",body:JSON.stringify({title:$("#newsTitle").value,body:$("#newsBody").value,coverUrl:$("#newsCover").value,published:$("#newsPublished").value==="true"})});e.currentTarget.reset();say("Новость сохранена");await load();}
+ catch(error){say(error.message,true)}finally{button.disabled=false;}
+};
+$("#newsList").onclick=async e=>{
+ const b=e.target.closest("button");if(!b)return;
+ try{
+  if(b.dataset.newsDelete){if(!confirm("Удалить эту новость?"))return;await api("/admin/news/"+encodeURIComponent(b.dataset.newsDelete),{method:"DELETE"});say("Новость удалена");}
+  else if(b.dataset.newsPublish){const id=b.dataset.newsPublish,post=(await api("/admin/news")).news.find(n=>n.id===id);if(!post)return;await api("/admin/news/"+encodeURIComponent(id),{method:"PATCH",body:JSON.stringify({title:post.title,body:post.body,coverUrl:post.cover_url,published:b.dataset.published==="1"})});say("Статус новости обновлён");}
+  await load();
+ }catch(error){say(error.message,true)}
+};
+\nload().catch(e=>say(e.message,true));
 $("#staffSearch").oninput=renderStaff;$("#userSearch").oninput=renderUsers;$("#ticketSearch").oninput=renderTickets;$("#ticketFilter").onchange=renderTickets;
 $("#staffList").onclick=async e=>{
  const b=e.target.closest("button");if(!b)return;
