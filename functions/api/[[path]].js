@@ -107,6 +107,13 @@ function isAdmin(user,env){return !!user&&staffLevel(user,env)>=1;}
 function staffLevel(user,env){return isOwner(user,env)?6:(user&&user.level!==undefined?Number(user.level):(user?.role==="admin"?4:0));}
 function staffRole(level){return ({0:"user",1:"helper",2:"moderator",3:"senior_moderator",4:"administrator",5:"head_admin",6:"owner"})[level]||"user";}
 function can(user,env,minimum){return staffLevel(user,env)>=minimum;}
+async function notifyUsers(env,recipients,title,body,href){
+ const rows=Array.isArray(recipients)?recipients:[];
+ for(let offset=0;offset<rows.length;offset+=50){
+  const batch=rows.slice(offset,offset+50).map(user=>env.DB.prepare("INSERT INTO notifications(id,user_id,title,body,href,kind,created_at) VALUES(?,?,?,?,?,'news',datetime('now'))").bind(crypto.randomUUID(),user.id,title,body,href));
+  if(batch.length)await env.DB.batch(batch);
+ }
+}
 function viewUser(user,env){const owner=isOwner(user,env),level=staffLevel(user,env);return{id:user.id,email:user.email,username:user.username,role:owner?'owner':(level?staffRole(level):'user'),level,isOwner:owner};}
 
 
@@ -428,7 +435,7 @@ async function handle(request,env){
    await env.DB.prepare("INSERT INTO news_posts(id,title,body,cover_url,is_published,created_by,created_at,updated_at) VALUES(?,?,?,?,?,?,datetime('now'),datetime('now'))").bind(id,title,content,cover,publish?1:0,actor.id).run();
    if(publish){
     const recipients=await env.DB.prepare("SELECT id FROM users WHERE id<>? LIMIT 5000").bind(actor.id).all();
-    for(const recipient of recipients.results||[])await env.DB.prepare("INSERT INTO notifications(id,user_id,title,body,href,kind,created_at) VALUES(?,?,?,?,?,'news',datetime('now'))").bind(crypto.randomUUID(),recipient.id,"Новая новость FRAGZONE",title,"/news/").run();
+    await notifyUsers(env,recipients.results||[],"Новая новость FRAGZONE",title,"/news/");
    }
    await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"news.create",id,JSON.stringify({published:publish})).run();
    return json({ok:true,id},201);
@@ -440,7 +447,7 @@ async function handle(request,env){
    if(title.length<3||content.length<5)return fail("Добавьте заголовок и текст новости");
    const previous=await env.DB.prepare("SELECT is_published FROM news_posts WHERE id=?").bind(newsMatch[1]).first();if(!previous)return fail("Новость не найдена",404);
    await env.DB.prepare("UPDATE news_posts SET title=?,body=?,cover_url=?,is_published=?,updated_at=datetime('now') WHERE id=?").bind(title,content,cover,publish?1:0,newsMatch[1]).run();
-   if(publish&&!previous.is_published){const recipients=await env.DB.prepare("SELECT id FROM users WHERE id<>? LIMIT 5000").bind(actor.id).all();for(const recipient of recipients.results||[])await env.DB.prepare("INSERT INTO notifications(id,user_id,title,body,href,kind,created_at) VALUES(?,?,?,?,?,'news',datetime('now'))").bind(crypto.randomUUID(),recipient.id,"Новая новость FRAGZONE",title,"/news/").run();}
+   if(publish&&!previous.is_published){const recipients=await env.DB.prepare("SELECT id FROM users WHERE id<>? LIMIT 5000").bind(actor.id).all();await notifyUsers(env,recipients.results||[],"Новая новость FRAGZONE",title,"/news/");}
    await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"news.update",newsMatch[1],JSON.stringify({published:publish})).run();return json({ok:true});
   }
   if(newsMatch&&method==="DELETE"){
