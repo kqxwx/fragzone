@@ -455,6 +455,7 @@ async function handle(request,env){
    const actor=await currentUser(request,env);if(!isOwner(actor,env))return fail("Только владелец",403);
    const body=await readBody(request),title=clean(body.title,120),content=clean(body.body,8000),cover=clean(body.coverUrl,500),publish=body.published===true;
    if(title.length<3||content.length<5)return fail("Добавьте заголовок и текст новости");
+   if(cover){try{if(new URL(cover).protocol!=="https:")return fail("Обложка должна быть HTTPS-ссылкой");}catch{return fail("Некорректная ссылка обложки");}}
    const previous=await env.DB.prepare("SELECT is_published FROM news_posts WHERE id=?").bind(newsMatch[1]).first();if(!previous)return fail("Новость не найдена",404);
    await env.DB.prepare("UPDATE news_posts SET title=?,body=?,cover_url=?,is_published=?,updated_at=datetime('now') WHERE id=?").bind(title,content,cover,publish?1:0,newsMatch[1]).run();
    if(publish&&!previous.is_published){const recipients=await env.DB.prepare("SELECT id FROM users WHERE id<>? LIMIT 5000").bind(actor.id).all();await notifyUsers(env,recipients.results||[],"Новая новость FRAGZONE",title,"/news/");}
