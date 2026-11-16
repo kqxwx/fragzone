@@ -33,7 +33,7 @@
   const changeButton=dock.querySelector("[data-change]");
   function normalize(raw){
     let value=String(raw||"").trim();
-    const embedded=value.match(/src\\s*=\\s*["']([^"']+)["']/i);
+    const embedded=value.match(/src\s*=\s*["']([^"']+)["']/i);
     if(embedded)value=embedded[1];
     let url;
     try{url=new URL(value);}catch{throw new Error("Вставь корректную ссылку Яндекс Музыки.");}
