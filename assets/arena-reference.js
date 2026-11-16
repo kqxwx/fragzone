@@ -4,6 +4,15 @@
   "use strict";
   const sidebar = document.querySelector(".sidebar");
   const sideSection = sidebar && sidebar.querySelector(".sidebar-section");
+  const sideNav = sidebar && sidebar.querySelector(".nav");
+  if(sideNav){
+    for(const item of [{href:"/community/",label:"Сообщества",icon:"♧"},{href:"/news/",label:"Новости",icon:"▤"}]){
+      const link=document.createElement("a");link.className="nav-link";link.href=item.href;
+      const icon=document.createElement("span");icon.className="nav-icon";icon.textContent=item.icon;
+      const label=document.createElement("span");label.textContent=item.label;
+      link.append(icon,label);sideNav.append(link);
+    }
+  }
   const sideCta = document.createElement("section");
   sideCta.className = "arena-side-cta";
   sideCta.innerHTML = '<strong>Добавь свой сервер!</strong><p>Расскажи о своём проекте игровому сообществу</p><a href="/support/">Добавить сервер →</a>';
