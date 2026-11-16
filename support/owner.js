@@ -42,7 +42,7 @@ function renderSettings(rows){const v=Object.fromEntries(rows.map(x=>[x.key,x.va
 async function saveSetting(key,value){await api("/admin/settings",{method:"PATCH",body:JSON.stringify({key,value})});say("Настройка сохранена");}
 $("#loginForm").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.currentTarget),b=e.currentTarget.querySelector('button[type="submit"]');b.disabled=true;b.textContent="Входим…";try{await api("/admin/login",{method:"POST",body:JSON.stringify({email:f.get("email"),password:f.get("password")})});await load();}catch(err){say(err.message,true);}finally{b.disabled=false;b.textContent="Войти";}};
 $("#logout").onclick=async()=>{await api("/auth/logout",{method:"POST",body:"{}"});location.reload();};
-$("#refresh").onclick=()=>
+$("#refresh").onclick=()=>load().catch(e=>say(e.message,true));
 $("#newsForm").onsubmit=async e=>{
  e.preventDefault();const button=e.currentTarget.querySelector('button[type="submit"]');button.disabled=true;
  try{await api("/admin/news",{method:"POST",body:JSON.stringify({title:$("#newsTitle").value,body:$("#newsBody").value,coverUrl:$("#newsCover").value,published:$("#newsPublished").value==="true"})});e.currentTarget.reset();say("Новость сохранена");await load();}
