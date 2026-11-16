@@ -44,8 +44,8 @@ $("#loginForm").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.cur
 $("#logout").onclick=async()=>{await api("/auth/logout",{method:"POST",body:"{}"});location.reload();};
 $("#refresh").onclick=()=>load().catch(e=>say(e.message,true));
 $("#newsForm").onsubmit=async e=>{
- e.preventDefault();const button=e.currentTarget.querySelector('button[type="submit"]');button.disabled=true;
- try{await api("/admin/news",{method:"POST",body:JSON.stringify({title:$("#newsTitle").value,body:$("#newsBody").value,coverUrl:$("#newsCover").value,published:$("#newsPublished").value==="true"})});e.currentTarget.reset();say("Новость сохранена");await load();}
+ e.preventDefault();const form=e.currentTarget;const button=form.querySelector('button[type="submit"]');button.disabled=true;
+ try{await api("/admin/news",{method:"POST",body:JSON.stringify({title:$("#newsTitle").value,body:$("#newsBody").value,coverUrl:$("#newsCover").value,published:$("#newsPublished").value==="true"})});form.reset();say("Новость сохранена");await load();}
  catch(error){say(error.message,true)}finally{button.disabled=false;}
 };
 $("#newsList").onclick=async e=>{
@@ -59,13 +59,12 @@ $("#newsList").onclick=async e=>{
 
 
 $("#broadcastForm").onsubmit=async e=>{
- e.preventDefault();if(!confirm("Отправить уведомление всем пользователям FRAGZONE?"))return;
- const button=e.currentTarget.querySelector('button[type="submit"]');button.disabled=true;
- try{const result=await api("/admin/notifications/broadcast",{method:"POST",body:JSON.stringify({title:$("#broadcastTitle").value,body:$("#broadcastBody").value,href:$("#broadcastHref").value})});say("Уведомление отправлено: "+result.sent+" пользователей");e.currentTarget.reset();$("#broadcastHref").value="/news/";}
+ e.preventDefault();const form=e.currentTarget;if(!confirm("Отправить уведомление всем пользователям FRAGZONE?"))return;
+ const button=form.querySelector('button[type="submit"]');button.disabled=true;
+ try{const result=await api("/admin/notifications/broadcast",{method:"POST",body:JSON.stringify({title:$("#broadcastTitle").value,body:$("#broadcastBody").value,href:$("#broadcastHref").value})});say("Уведомление отправлено: "+result.sent+" пользователей");form.reset();$("#broadcastHref").value="/news/";}
  catch(error){say(error.message,true)}finally{button.disabled=false;}
 };
 
-load().catch(e=>say(e.message,true));
 $("#staffSearch").oninput=renderStaff;$("#userSearch").oninput=renderUsers;$("#ticketSearch").oninput=renderTickets;$("#ticketFilter").onchange=renderTickets;
 $("#staffList").onclick=async e=>{
  const b=e.target.closest("button");if(!b)return;
@@ -75,7 +74,7 @@ $("#staffList").onclick=async e=>{
 $("#userList").onclick=async e=>{const b=e.target.closest("button");if(!b)return;try{if(b.dataset.saveUser){const id=b.dataset.saveUser,role=document.querySelector('[data-user-role="'+CSS.escape(id)+'"]').value;await api("/admin/users/"+encodeURIComponent(id),{method:"PATCH",body:JSON.stringify({role})});say("Роль пользователя обновлена");}else if(b.dataset.revokeUser){if(!confirm("Завершить все сессии пользователя?"))return;await api("/admin/logout-all",{method:"POST",body:JSON.stringify({userId:b.dataset.revokeUser})});say("Сессии завершены");}await load();}catch(e){say(e.message,true);}};
 $("#ticketList").onclick=async e=>{const b=e.target.closest("button");if(!b)return;try{if(b.dataset.saveTicket){const id=b.dataset.saveTicket,status=document.querySelector('[data-ticket-status="'+CSS.escape(id)+'"]').value,priority=document.querySelector('[data-ticket-priority="'+CSS.escape(id)+'"]').value;await api("/admin/tickets/"+encodeURIComponent(id),{method:"PATCH",body:JSON.stringify({status,priority})});say("Обращение обновлено");}else if(b.dataset.ticketNote){const note=prompt("Внутренняя заметка (видна только администрации):");if(!note)return;await api("/admin/ticket-notes",{method:"POST",body:JSON.stringify({ticketId:b.dataset.ticketNote,note})});say("Внутренняя заметка добавлена");}await load();}catch(e){say(e.message,true);}};
 $("#punishmentList").onclick=async e=>{const b=e.target.closest("[data-revoke-punishment]");if(!b)return;try{await api("/admin/punishments/"+encodeURIComponent(b.dataset.revokePunishment),{method:"PATCH",body:JSON.stringify({active:false})});say("Наказание снято");await load();}catch(e){say(e.message,true);}};
-$("#punishForm").onsubmit=async e=>{e.preventDefault();const expires=$("#punishExpiry").value;try{await api("/admin/punishments",{method:"POST",body:JSON.stringify({userId:$("#punishUser").value,type:$("#punishType").value,reason:$("#punishReason").value,expiresAt:expires?new Date(expires).toISOString():null})});say("Наказание выдано");e.currentTarget.reset();await load();}catch(err){say(err.message,true);}};
+$("#punishForm").onsubmit=async e=>{e.preventDefault();const form=e.currentTarget;const expires=$("#punishExpiry").value;try{await api("/admin/punishments",{method:"POST",body:JSON.stringify({userId:$("#punishUser").value,type:$("#punishType").value,reason:$("#punishReason").value,expiresAt:expires?new Date(expires).toISOString():null})});say("Наказание выдано");form.reset();await load();}catch(err){say(err.message,true);}};
 $("#saveMaintenance").onclick=()=>saveSetting("maintenance_mode",$("#maintenance").value).catch(e=>say(e.message,true));
 $("#saveRegistration").onclick=()=>saveSetting("registration_enabled",$("#registration").value).catch(e=>say(e.message,true));
 $("#saveSupport").onclick=()=>saveSetting("support_enabled",$("#supportEnabled").value).catch(e=>say(e.message,true));

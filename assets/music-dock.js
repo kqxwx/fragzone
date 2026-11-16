@@ -1,50 +1,86 @@
-/* FRAGZONE original ambient synth player. Audio starts only after a user click. */
+/* FRAGZONE Yandex Music embed player. Playback is provided by Yandex's official iframe. */
 (() => {
   "use strict";
   if (document.querySelector(".fz-music-dock")) return;
-  const tracks = [
-    {name:"Neon Skyline",style:"Cyber ambient",root:110,notes:[0,3,7,10]},
-    {name:"Midnight Respawn",style:"Dark synthwave",root:98,notes:[0,5,7,12]},
-    {name:"Crystal Portal",style:"Space ambient",root:130.81,notes:[0,4,7,11]}
-  ];
-  let index=0,context=null,master=null,playing=false,step=0,timer=0,voices=[];
+  const STORAGE_KEY="fragzone_yandex_music_embed";
   const dock=document.createElement("section");
-  dock.className="fz-music-dock";
-  dock.innerHTML='<div class="fz-music-mark">♫</div><div class="fz-music-meta"><b data-track>Neon Skyline</b><small data-style>Cyber ambient · FRAGZONE RADIO</small></div><button type="button" data-prev aria-label="Предыдущий трек">◀</button><button type="button" data-play aria-label="Воспроизвести">▶</button><button type="button" data-next aria-label="Следующий трек">▶</button><label class="fz-music-volume" title="Громкость"><input type="range" min="0" max="1" step=".01" value=".22" style="width:100%;accent-color:#c000ff"></label>';
+  dock.className="fz-music-dock fz-yandex-dock";
+  dock.innerHTML=[
+    '<div class="fz-music-mark" aria-hidden="true">♫</div>',
+    '<div class="fz-music-meta"><b>Яндекс Музыка</b><small data-status>Добавь ссылку на трек или плейлист</small></div>',
+    '<button type="button" data-open aria-expanded="false">Открыть</button>',
+    '<div class="fz-yandex-panel" data-panel hidden>',
+      '<div class="fz-yandex-head"><b>Твоя музыка</b><button type="button" data-close aria-label="Закрыть">×</button></div>',
+      '<form data-form class="fz-yandex-form">',
+        '<label for="fzYandexUrl">Ссылка на трек или плейлист Яндекс Музыки</label>',
+        '<input id="fzYandexUrl" type="text" inputmode="url" autocomplete="url" placeholder="https://music.yandex.ru/users/.../playlists/..." required>',
+        '<button type="submit">Подключить</button>',
+      '</form>',
+      '<p class="fz-yandex-help">Открой трек или плейлист в Яндекс Музыке → «Поделиться» → скопируй ссылку. Можно вставить и весь HTML-код плеера — ссылка src извлечётся автоматически.</p>',
+      '<div class="fz-yandex-frame" data-frame-wrap hidden></div>',
+      '<div class="fz-yandex-empty" data-empty>После подключения здесь появится официальный плеер Яндекс Музыки.</div>',
+      '<button type="button" data-change hidden>Изменить ссылку</button>',
+    '</div>'
+  ].join("");
   document.body.append(dock);
-  const trackName=dock.querySelector("[data-track]"),trackStyle=dock.querySelector("[data-style]"),playButton=dock.querySelector("[data-play]");
-  function update(){trackName.textContent=tracks[index].name;trackStyle.textContent=tracks[index].style+" · FRAGZONE RADIO";playButton.textContent=playing?"Ⅱ":"▶";}
-  function stopVoices(){voices.forEach(v=>{try{v.stop()}catch(_){}});voices=[];}
-  function tone(freq,when,duration,gainValue,type="sine"){
-    const osc=context.createOscillator(),gain=context.createGain(),filter=context.createBiquadFilter();
-    osc.type=type;osc.frequency.setValueAtTime(freq,when);
-    filter.type="lowpass";filter.frequency.setValueAtTime(1100,when);
-    gain.gain.setValueAtTime(.0001,when);gain.gain.exponentialRampToValueAtTime(gainValue,when+.08);gain.gain.exponentialRampToValueAtTime(.0001,when+duration);
-    osc.connect(filter);filter.connect(gain);gain.connect(master);osc.start(when);osc.stop(when+duration+.03);voices.push(osc);
+  const panel=dock.querySelector("[data-panel]");
+  const openButton=dock.querySelector("[data-open]");
+  const status=dock.querySelector("[data-status]");
+  const form=dock.querySelector("[data-form]");
+  const input=dock.querySelector("#fzYandexUrl");
+  const frameWrap=dock.querySelector("[data-frame-wrap]");
+  const empty=dock.querySelector("[data-empty]");
+  const changeButton=dock.querySelector("[data-change]");
+  function normalize(raw){
+    let value=String(raw||"").trim();
+    const embedded=value.match(/src\s*=\s*["']([^"']+)["']/i);
+    if(embedded)value=embedded[1];
+    let url;
+    try{url=new URL(value);}catch{throw new Error("Вставь корректную ссылку Яндекс Музыки.");}
+    if(url.protocol!=="https:"||!/(^|\.)music\.yandex\.(ru|com|by|kz|ua)$/i.test(url.hostname))throw new Error("Подходит только ссылка с сайта music.yandex.");
+    let hash=url.hash.replace(/^#/,"");
+    if(url.pathname==="/iframe/"&&hash){
+      if(!/^(track|playlist|album|artist|podcast)\/[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)?$/.test(hash))throw new Error("Не удалось распознать ссылку встроенного плеера.");
+      return "https://music.yandex.ru/iframe/#"+hash;
+    }
+    const track=url.pathname.match(/\/album\/(\d+)\/track\/(\d+)/);
+    if(track)return "https://music.yandex.ru/iframe/#track/"+track[2]+"/"+track[1];
+    const playlist=url.pathname.match(/\/users\/([^/]+)\/playlists\/(\d+)/);
+    if(playlist)return "https://music.yandex.ru/iframe/#playlist/"+encodeURIComponent(playlist[1])+"/"+playlist[2];
+    const album=url.pathname.match(/\/album\/(\d+)(?:\/|$)/);
+    if(album)return "https://music.yandex.ru/iframe/#album/"+album[1];
+    const artist=url.pathname.match(/\/artist\/(\d+)(?:\/|$)/);
+    if(artist)return "https://music.yandex.ru/iframe/#artist/"+artist[1];
+    if(hash&&/^(track|playlist|album|artist|podcast)\//.test(hash))return "https://music.yandex.ru/iframe/#"+hash;
+    throw new Error("Не распознана ссылка. Вставь ссылку на трек/плейлист или его HTML-код из меню «Поделиться».");
   }
-  function chord(){
-    if(!playing||!context)return;
-    const t=context.currentTime,track=tracks[index],base=track.root*Math.pow(2,Math.floor(step/4)%2);
-    const note=track.notes[step%track.notes.length];
-    tone(base*Math.pow(2,note/12),t,2.8,.12,"triangle");
-    if(step%2===0){tone(base*.5,t,3.6,.07,"sine");tone(base*Math.pow(2,(note+7)/12),t+.03,2.3,.045,"sine");}
-    if(step%4===0)tone(base*Math.pow(2,(note+19)/12),t+.1,1.7,.025,"sine");
-    step++;timer=window.setTimeout(chord,1800);
+  function showPlayer(src){
+    frameWrap.replaceChildren();
+    const frame=document.createElement("iframe");
+    frame.src=src;frame.title="Официальный плеер Яндекс Музыки";frame.loading="lazy";
+    frame.referrerPolicy="strict-origin-when-cross-origin";
+    frame.allow="autoplay; encrypted-media; clipboard-write";frame.setAttribute("allowfullscreen","");
+    frameWrap.append(frame);frameWrap.hidden=false;empty.hidden=true;changeButton.hidden=false;
+    status.textContent="Плеер Яндекс Музыки подключён";
   }
-  async function start(){
-    const AudioCtx=window.AudioContext||window.webkitAudioContext;
-    if(!AudioCtx){trackStyle.textContent="Браузер не поддерживает аудио";return;}
-    if(!context){context=new AudioCtx();master=context.createGain();master.gain.value=.22;master.connect(context.destination);}
-    await context.resume();playing=true;step=0;update();chord();
+  function connect(raw,save=true){
+    const src=normalize(raw);showPlayer(src);
+    if(save){try{localStorage.setItem(STORAGE_KEY,src);}catch{}}
+    input.value=raw;form.hidden=true;dock.classList.add("has-yandex");status.classList.remove("is-error");
   }
-  function pause(){playing=false;window.clearTimeout(timer);stopVoices();if(context)context.suspend();update();}
-  function change(delta){index=(index+delta+tracks.length)%tracks.length;step=0;if(playing){window.clearTimeout(timer);stopVoices();chord();}update();}
-  playButton.addEventListener("click",()=>playing?pause():start().catch(()=>{trackStyle.textContent="Не удалось запустить аудио";}));
-  dock.querySelector("[data-prev]").addEventListener("click",()=>change(-1));
-  dock.querySelector("[data-next]").addEventListener("click",()=>change(1));
-  dock.querySelector('input[type="range"]').addEventListener("input",event=>{if(master)master.gain.value=Number(event.target.value);});
-  document.addEventListener("visibilitychange",()=>{if(document.hidden&&playing)pause();});
-  update();
+  openButton.addEventListener("click",()=>{
+    const show=panel.hidden;panel.hidden=!show;openButton.textContent=show?"Свернуть":"Открыть";
+    openButton.setAttribute("aria-expanded",String(show));
+  });
+  dock.querySelector("[data-close]").addEventListener("click",()=>{
+    panel.hidden=true;openButton.textContent="Открыть";openButton.setAttribute("aria-expanded","false");
+  });
+  form.addEventListener("submit",event=>{
+    event.preventDefault();try{connect(input.value,true);}
+    catch(error){status.textContent=error.message;status.classList.add("is-error");}
+  });
+  changeButton.addEventListener("click",()=>{form.hidden=false;input.focus();changeButton.hidden=true;status.textContent="Вставь новую ссылку";});
+  try{const saved=localStorage.getItem(STORAGE_KEY);if(saved){input.value=saved;connect(saved,false);}}catch{}
   const heartbeat=()=>fetch("/api/presence",{method:"POST",credentials:"same-origin",cache:"no-store"}).catch(()=>{});
   heartbeat();window.setInterval(heartbeat,60000);
 })();
