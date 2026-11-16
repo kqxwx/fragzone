@@ -1,0 +1,38 @@
+
+/* FRAGZONE account hub */
+.fz-account-slot,.fz-notice-slot{position:relative;flex:0 0 auto}
+.fz-account-button,.fz-notice-button{display:flex;align-items:center;gap:9px;min-height:42px;padding:5px 10px;border:1px solid #68409a;border-radius:13px;background:linear-gradient(145deg,#17142d,#0b1021);color:#fff;cursor:pointer;box-shadow:0 0 16px #a900ff22}
+.fz-account-button:hover,.fz-notice-button:hover{border-color:#d14bff;box-shadow:0 0 18px #a900ff55}
+.fz-avatar{width:32px;height:32px;display:grid;place-items:center;overflow:hidden;flex:0 0 32px;border-radius:10px;background:linear-gradient(135deg,#a900ff,#00cfff);font-size:13px;font-weight:950;color:white}
+.fz-avatar img{width:100%;height:100%;object-fit:cover}
+.fz-account-label{display:grid;gap:3px;text-align:left;min-width:60px}
+.fz-account-label b{font-size:10px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fz-account-label small{font-size:8px;color:#e9aaff;font-weight:900;letter-spacing:.6px}
+.fz-chevron{color:#c7b4e9;font-size:13px}
+.fz-notice-button{position:relative;width:40px;justify-content:center;font-size:20px}
+.fz-notice-button i{position:absolute;right:-4px;top:-5px;min-width:16px;height:16px;padding:1px 4px;border-radius:99px;background:#f22;color:white;font-size:9px;font-style:normal;font-weight:900}
+.fz-account-menu,.fz-notice-menu{position:absolute;right:0;top:calc(100% + 9px);z-index:1000;width:230px;padding:8px;border:1px solid #633c92;border-radius:15px;background:#0b0d1b;box-shadow:0 18px 50px #000c,0 0 24px #a900ff25}
+.fz-account-menu[hidden],.fz-notice-menu[hidden]{display:none}
+.fz-account-menu a{display:flex;align-items:center;gap:9px;padding:11px;border-radius:9px;color:#e8e4f5;font-size:11px;font-weight:750;text-decoration:none}
+.fz-account-menu a:hover{background:#7d19bd44;color:white}
+.fz-notice-menu{width:min(340px,calc(100vw - 22px));padding:0;overflow:hidden}
+.fz-notice-head{display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid #ffffff16;color:white;font-size:12px}
+.fz-notice-head button{border:0;background:none;color:#d995ff;font-size:9px;cursor:pointer}
+.fz-notice-list{max-height:340px;overflow:auto}
+.fz-notice-item{display:grid;gap:5px;padding:11px 12px;border-bottom:1px solid #ffffff10;color:#c9c4d8;text-decoration:none}
+.fz-notice-item.unread{background:#7b1ca52b}
+.fz-notice-item b{font-size:10px;color:#fff}
+.fz-notice-item span{font-size:9px;line-height:1.4}
+.fz-notice-item small{font-size:8px;color:#8e88a8}
+.fz-empty{padding:18px;text-align:center;color:#9b94b1;font-size:10px}
+.fz-music-dock{position:fixed;left:50%;bottom:12px;z-index:900;transform:translateX(-50%);width:min(620px,calc(100vw - 22px));display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid #7c36b7;border-radius:16px;background:#090b19ed;box-shadow:0 12px 45px #000b,0 0 22px #8b00ff35;backdrop-filter:blur(16px)}
+.fz-music-mark{width:32px;height:32px;display:grid;place-items:center;border-radius:10px;background:linear-gradient(135deg,#a900ff,#00cfff);font-size:15px}
+.fz-music-meta{min-width:0;flex:1}
+.fz-music-meta b,.fz-music-meta small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fz-music-meta b{font-size:10px;color:white}.fz-music-meta small{margin-top:3px;font-size:8px;color:#aaa2c3}
+.fz-music-dock button{width:30px;height:30px;border:1px solid #56317d;border-radius:9px;background:#17132b;color:white;cursor:pointer}
+.fz-music-dock button[data-play]{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#a900ff,#e000d7);border:0;font-weight:900}
+.fz-music-volume{width:70px;accent-color:#c000ff}
+body{padding-bottom:76px}
+@media(max-width:760px){.fz-account-label{display:none}.fz-account-button{gap:4px;padding:5px}.fz-account-menu{right:0}.fz-music-dock{bottom:7px;gap:6px;padding:7px 9px}.fz-music-volume{width:48px}}
+@media(max-width:420px){.fz-music-volume{display:none}.fz-account-menu{width:210px}}
