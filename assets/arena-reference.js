@@ -151,6 +151,7 @@
     if(event.target.closest("[data-read-all]")){await fetch("/api/notifications/read-all",{method:"POST",credentials:"same-origin"});await refreshNotifications();return;}
     const item=event.target.closest("[data-notice-id]");if(item){event.preventDefault();await fetch("/api/notifications/"+encodeURIComponent(item.dataset.noticeId),{method:"PATCH",credentials:"same-origin"}).catch(()=>{});location.href=item.href;}
   });
+  window.addEventListener("fragzone:account-updated",refreshAccount);
   refreshAccount();
   setInterval(refreshAccount,60000);
   fetch("/api/presence").then(r=>r.json()).then(data=>{const pill=document.querySelector(".arena-live-pill");if(pill)pill.textContent="● Онлайн: "+Number(data.online||0).toLocaleString("ru-RU");}).catch(()=>{});
