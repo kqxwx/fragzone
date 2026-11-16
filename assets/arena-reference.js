@@ -120,6 +120,7 @@
   }
   const closeMenus=event=>{if(!accountSlot.contains(event.target))accountMenu.hidden=true;if(!noticeSlot.contains(event.target))noticeMenu.hidden=true;};
   document.addEventListener("click",closeMenus);
+  accountMenu.querySelector("[data-fz-logout]").addEventListener("click",async()=>{const button=accountMenu.querySelector("[data-fz-logout]");button.disabled=true;try{await fetch("/api/auth/logout",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:"{}"});location.reload();}catch(_){button.disabled=false;}});
   accountButton.addEventListener("click",event=>{event.stopPropagation();accountMenu.hidden=!accountMenu.hidden;noticeMenu.hidden=true;});
   noticeButton.addEventListener("click",async event=>{event.stopPropagation();noticeMenu.hidden=!noticeMenu.hidden;accountMenu.hidden=true;if(!noticeMenu.hidden)await refreshNotifications();});
   const escapeText=value=>String(value??"").replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
@@ -132,7 +133,6 @@
       const role=loggedUser.isOwner?"ВЛАДЕЛЕЦ":({head_admin:"ГЛАВНЫЙ АДМИН",administrator:"АДМИНИСТРАТОР",senior_moderator:"СТАРШИЙ МОДЕРАТОР",moderator:"МОДЕРАТОР",helper:"ХЕЛПЕР"}[loggedUser.role]||"ИГРОК");
       const avatar=loggedUser.avatarUrl?'<img src="'+escapeText(loggedUser.avatarUrl)+'" alt="">':escapeText((loggedUser.username||"F").slice(0,1).toUpperCase());
       accountButton.innerHTML='<span class="fz-avatar">'+avatar+'</span><span class="fz-account-label"><b>'+escapeText(loggedUser.username)+'</b><small>'+role+'</small></span><span class="fz-chevron">⌄</span>';
-      accountMenu.querySelector("[data-fz-logout]").addEventListener("click",async()=>{const button=accountMenu.querySelector("[data-fz-logout]");button.disabled=true;try{await fetch("/api/auth/logout",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:"{}"});location.reload();}catch(_){button.disabled=false;}});
   accountMenu.querySelector("[data-staff-link]").hidden=!(Number(loggedUser.level||0)>=1||loggedUser.isOwner);
       accountMenu.querySelector("[data-owner-link]").hidden=!loggedUser.isOwner;
       await refreshNotifications();
