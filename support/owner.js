@@ -57,7 +57,14 @@ $("#newsList").onclick=async e=>{
  }catch(error){say(error.message,true)}
 };
 
-load().catch(e=>say(e.message,true));
+
+$("#broadcastForm").onsubmit=async e=>{
+ e.preventDefault();if(!confirm("Отправить уведомление всем пользователям FRAGZONE?"))return;
+ const button=e.currentTarget.querySelector('button[type="submit"]');button.disabled=true;
+ try{const result=await api("/admin/notifications/broadcast",{method:"POST",body:JSON.stringify({title:$("#broadcastTitle").value,body:$("#broadcastBody").value,href:$("#broadcastHref").value})});say("Уведомление отправлено: "+result.sent+" пользователей");e.currentTarget.reset();$("#broadcastHref").value="/news/";}
+ catch(error){say(error.message,true)}finally{button.disabled=false;}
+};
+\nload().catch(e=>say(e.message,true));
 $("#staffSearch").oninput=renderStaff;$("#userSearch").oninput=renderUsers;$("#ticketSearch").oninput=renderTickets;$("#ticketFilter").onchange=renderTickets;
 $("#staffList").onclick=async e=>{
  const b=e.target.closest("button");if(!b)return;
