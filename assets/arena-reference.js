@@ -38,10 +38,24 @@
   const search = document.querySelector(".toolbar .search");
   if (topRight && search) topRight.prepend(search);
   if (topRight) {
+    const profile = document.createElement("a");
+    profile.className = "site-url arena-profile-link";
+    profile.href = "/account/";
+    profile.textContent = "👤 Войти / Профиль";
+    topRight.append(profile);
     const live = document.createElement("span");
     live.className = "arena-live-pill";
     live.textContent = "Мониторинг LIVE";
     topRight.prepend(live);
+  }
+
+  const heroTitle = document.querySelector(".hero h1");
+  if (heroTitle) {
+    heroTitle.textContent = "FRAGZONE";
+    const slogan = document.createElement("div");
+    slogan.className = "arena-slogan";
+    slogan.textContent = "ИГРАЙ БЕЗ ГРАНИЦ";
+    heroTitle.after(slogan);
   }
 
   const popular = document.getElementById("popularGames");
