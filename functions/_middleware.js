@@ -9,7 +9,7 @@ export async function onRequest({request,env,next}){
   const sessionToken=cookie(request);
   if(sessionToken){
    const sessionHash=await sha256(sessionToken);
-   const banned=await env.DB.prepare("SELECT u.email,p.reason FROM sessions s JOIN users u ON u.id=s.user_id JOIN punishments p ON p.user_id=u.id WHERE s.token_hash=? AND s.expires_at>datetime('now') AND p.type='ban' AND p.active=1 AND (p.expires_at IS NULL OR p.expires_at>datetime('now')) ORDER BY p.created_at DESC LIMIT 1").bind(sessionHash).first();
+   const banned=await env.DB.prepare("SELECT u.email,p.reason FROM sessions s JOIN users u ON u.id=s.user_id JOIN punishments p ON p.user_id=u.id WHERE s.token_hash=? AND s.expires_at>datetime('now') AND p.type='ban' AND p.scope='full' AND p.active=1 AND (p.expires_at IS NULL OR p.expires_at>datetime('now')) ORDER BY p.created_at DESC LIMIT 1").bind(sessionHash).first();
    const ownerEmail=String(env.ADMIN_EMAIL||"").trim().toLowerCase();
    const isOwner=!!banned&&String(banned.email||"").trim().toLowerCase()===ownerEmail;
    const path=new URL(request.url).pathname;

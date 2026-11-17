@@ -38,6 +38,8 @@ async function ensureSchema(db) {
    "CREATE INDEX IF NOT EXISTS idx_presence_seen ON presence(last_seen)"
   ];
   for(const sql of statements) await db.prepare(sql).run();
+  const punishmentColumns=await db.prepare("PRAGMA table_info(punishments)").all();
+  if(!(punishmentColumns.results||[]).some(column=>column.name==="scope")) await db.prepare("ALTER TABLE punishments ADD COLUMN scope TEXT NOT NULL DEFAULT 'full'").run();
  })();
  try { await schemaReadyPromise; }
  catch(error) { schemaReadyPromise=null; throw error; }
@@ -324,7 +326,7 @@ async function handle(request,env){
  if(path==="admin/punishments"&&method==="POST"){
   const actor=await currentUser(request,env);if(!isAdmin(actor,env))return fail("Требуется доступ администрации",403);
   const body=await readBody(request),type=clean(body.type,12),userId=clean(body.userId,64),reason=clean(body.reason,500);
-  if(!["warn","ban","mute"].includes(type)||!userId||reason.length<3)return fail("Укажите тип наказания, пользователя и причину");
+  if(!["warn","ban","full_ban","mute"].includes(type)||!userId||reason.length<3)return fail("Укажите тип наказания, пользователя и причину");
   const target=await env.DB.prepare("SELECT id,email FROM users WHERE id=?").bind(userId).first();
   if(!target)return fail("Пользователь не найден",404);
   // Owner-targeted ban attempts are intercepted before ordinary permission checks:
@@ -344,12 +346,12 @@ async function handle(request,env){
    }
    return fail("Владелец защищён от наказаний",403);
   }
-  const required=type==="warn"?2:type==="ban"?4:2;
+  const required=type==="full_ban"?5:type==="ban"?4:2;
   if(!can(actor,env,required))return fail("Недостаточно прав для этого наказания",403);
   let expires=null;
   if(body.expiresAt){const parsed=new Date(body.expiresAt);if(Number.isNaN(parsed.getTime()))return fail("Некорректная дата окончания");expires=parsed.toISOString().slice(0,19).replace("T"," ");}
-  const id=crypto.randomUUID();
-  await env.DB.prepare("INSERT INTO punishments(id,user_id,actor_id,type,reason,expires_at,active,created_at) VALUES(?,?,?,?,?,?,1,datetime('now'))").bind(id,userId,actor.id,type,reason,expires).run();
+  const id=crypto.randomUUID(),scope=type==="full_ban"?"full":"account";
+  await env.DB.prepare("INSERT INTO punishments(id,user_id,actor_id,type,reason,expires_at,active,created_at,scope) VALUES(?,?,?,?,?,?,1,CURRENT_TIMESTAMP,?)").bind(id,userId,actor.id,type==="full_ban"?"ban":type,reason,expires,scope).run();
   // Keep session rows so Pages middleware can identify the banned account and show the full-site lock screen. currentUser() and bannedSession() deny authenticated access while the ban is active.
   await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"punishment."+type,userId,JSON.stringify({reason,expiresAt:expires})).run();
   return json({ok:true,id},201);
