@@ -158,7 +158,8 @@ async function handle(request,env){
     return json({error:message,blocked:true,until},403,{"set-cookie":setCookie(blockedSession.token,blockedSession.maxAge)});
    }
    return fail(message,403);
-  }onst passwordCheck=await verifyPassword(password,user.password_hash);
+  }
+  const passwordCheck=await verifyPassword(password,user.password_hash);
   if(passwordCheck==="legacy")return fail("Для этого аккаунта требуется восстановление пароля: сохранённый хеш использует старый формат, несовместимый с бесплатным тарифом Cloudflare.",409);
   if(passwordCheck!==true)return fail("Неверный email или пароль",401);
   const staff=await env.DB.prepare("SELECT level FROM admin_roles WHERE user_id=?").bind(user.id).first();user.level=staff?.level??(user.role==="admin"?4:0);
