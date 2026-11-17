@@ -94,6 +94,12 @@ async function currentUser(request,env){
  const token=getCookie(request);if(!token)return null;
  return env.DB.prepare("SELECT u.id,u.email,u.username,u.role,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN admin_roles ar ON ar.user_id=u.id WHERE s.token_hash=? AND s.expires_at>datetime('now') AND (lower(u.email)=lower(?) OR NOT EXISTS (SELECT 1 FROM punishments p WHERE p.user_id=u.id AND p.type='ban' AND p.active=1 AND (p.expires_at IS NULL OR p.expires_at>datetime('now'))))").bind(await sha256(token),clean(env.ADMIN_EMAIL,254)).first();
 }
+async function bannedSession(request,env){
+ const token=getCookie(request);if(!token)return null;
+ const row=await env.DB.prepare("SELECT u.email,p.reason,p.expires_at FROM sessions s JOIN users u ON u.id=s.user_id JOIN punishments p ON p.user_id=u.id WHERE s.token_hash=? AND s.expires_at>datetime('now') AND p.type='ban' AND p.active=1 AND (p.expires_at IS NULL OR p.expires_at>datetime('now')) ORDER BY p.created_at DESC LIMIT 1").bind(await sha256(token)).first();
+ if(!row||clean(env.ADMIN_EMAIL,254).toLowerCase()===String(row.email||"").toLowerCase())return null;
+ return row;
+}
 async function isMuted(userId,env){if(!userId)return false;const row=await env.DB.prepare("SELECT id FROM punishments WHERE user_id=? AND type='mute' AND active=1 AND (expires_at IS NULL OR expires_at > datetime('now')) LIMIT 1").bind(userId).first();return !!row;}
 async function createSession(userId,env){
  const identity=await env.DB.prepare("SELECT u.email,u.role,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM users u LEFT JOIN admin_roles ar ON ar.user_id=u.id WHERE u.id=?").bind(userId).first();
@@ -122,6 +128,7 @@ async function handle(request,env){
  const url=new URL(request.url),path=url.pathname.replace(/^\/api\/?/,"").replace(/\/+$/,""),method=request.method.toUpperCase();
  if(method==="OPTIONS")return new Response(null,{status:204});
  const origin=request.headers.get("Origin");if(origin&&origin!==url.origin)return fail("Недопустимый источник запроса",403);
+ if(!(path==="auth/logout"&&method==="POST")){const ban=await bannedSession(request,env);if(ban)return fail("Полный бан аккаунта: "+clean(ban.reason,500)+". Доступ к сайту ограничен.",403,{ "x-fragzone-account-banned":"1" });}
  if(path==="auth/me"&&method==="GET"){const user=await currentUser(request,env);if(!user)return json({user:null});const profile=await env.DB.prepare("SELECT avatar_url,bio FROM user_profiles WHERE user_id=?").bind(user.id).first();return json({user:{...viewUser(user,env),avatarUrl:profile?.avatar_url||"",bio:profile?.bio||""}});}
  if(path==="auth/register"&&method==="POST"){
   const registration=await env.DB.prepare("SELECT value FROM site_settings WHERE key='registration_enabled'").first();
@@ -343,6 +350,7 @@ async function handle(request,env){
   if(body.expiresAt){const parsed=new Date(body.expiresAt);if(Number.isNaN(parsed.getTime()))return fail("Некорректная дата окончания");expires=parsed.toISOString().slice(0,19).replace("T"," ");}
   const id=crypto.randomUUID();
   await env.DB.prepare("INSERT INTO punishments(id,user_id,actor_id,type,reason,expires_at,active,created_at) VALUES(?,?,?,?,?,?,1,datetime('now'))").bind(id,userId,actor.id,type,reason,expires).run();
+  // Keep session rows so Pages middleware can identify the banned account and show the full-site lock screen. currentUser() and bannedSession() deny authenticated access while the ban is active.
   await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"punishment."+type,userId,JSON.stringify({reason,expiresAt:expires})).run();
   return json({ok:true,id},201);
  }
