@@ -149,6 +149,9 @@ async function handle(request,env){
   const body=await readBody(request),email=clean(body.email,254).toLowerCase(),password=typeof body.password==="string"?body.password:"";
   const user=await env.DB.prepare("SELECT * FROM users WHERE email=?").bind(email).first();
   if(!user)return fail("Неверный email или пароль",401);
+  const passwordCheck=await verifyPassword(password,user.password_hash);
+  if(passwordCheck==="legacy")return fail("Для этого аккаунта требуется восстановление пароля: сохранённый хеш использует старый формат, несовместимый с бесплатным тарифом Cloudflare.",409);
+  if(passwordCheck!==true)return fail("Неверный email или пароль",401);
   const activeBan=await env.DB.prepare("SELECT reason,expires_at,scope FROM punishments WHERE user_id=? AND type='ban' AND active=1 AND (expires_at IS NULL OR expires_at > datetime('now')) ORDER BY created_at DESC LIMIT 1").bind(user.id).first();
   if(activeBan&&email!==clean(env.ADMIN_EMAIL,254).toLowerCase()){
    const until=activeBan.expires_at?new Date(String(activeBan.expires_at).replace(" ","T")+"Z").toLocaleString("ru-RU",{timeZone:"Europe/Moscow"}):"навсегда";
@@ -159,9 +162,6 @@ async function handle(request,env){
    }
    return fail(message,403);
   }
-  const passwordCheck=await verifyPassword(password,user.password_hash);
-  if(passwordCheck==="legacy")return fail("Для этого аккаунта требуется восстановление пароля: сохранённый хеш использует старый формат, несовместимый с бесплатным тарифом Cloudflare.",409);
-  if(passwordCheck!==true)return fail("Неверный email или пароль",401);
   const staff=await env.DB.prepare("SELECT level FROM admin_roles WHERE user_id=?").bind(user.id).first();user.level=staff?.level??(user.role==="admin"?4:0);
   const session=await createSession(user.id,env);return json({user:viewUser(user,env)},200,{"set-cookie":setCookie(session.token,session.maxAge)});
  }
