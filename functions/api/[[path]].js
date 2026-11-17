@@ -128,7 +128,7 @@ async function handle(request,env){
  const url=new URL(request.url),path=url.pathname.replace(/^\/api\/?/,"").replace(/\/+$/,""),method=request.method.toUpperCase();
  if(method==="OPTIONS")return new Response(null,{status:204});
  const origin=request.headers.get("Origin");if(origin&&origin!==url.origin)return fail("Недопустимый источник запроса",403);
- if(!(path==="auth/logout"&&method==="POST")){const ban=await bannedSession(request,env);if(ban)return fail("Полный бан аккаунта: "+clean(ban.reason,500)+". Доступ к сайту ограничен.",403,{ "x-fragzone-account-banned":"1" });}
+ if(!(path==="auth/logout"&&method==="POST")){const ban=await bannedSession(request,env);if(ban)return fail("Полный бан аккаунта: "+clean(ban.reason,500)+". Доступ к сайту ограничен.",403);}
  if(path==="auth/me"&&method==="GET"){const user=await currentUser(request,env);if(!user)return json({user:null});const profile=await env.DB.prepare("SELECT avatar_url,bio FROM user_profiles WHERE user_id=?").bind(user.id).first();return json({user:{...viewUser(user,env),avatarUrl:profile?.avatar_url||"",bio:profile?.bio||""}});}
  if(path==="auth/register"&&method==="POST"){
   const registration=await env.DB.prepare("SELECT value FROM site_settings WHERE key='registration_enabled'").first();
