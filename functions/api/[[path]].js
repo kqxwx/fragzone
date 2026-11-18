@@ -94,13 +94,7 @@ async function readBody(request){
 }
 async function currentUser(request,env){
  const token=getCookie(request);if(!token)return null;
- return env.DB.prepare("SELECT u.id,u.email,u.username,u.role,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN admin_roles ar ON ar.user_id=u.id WHERE s.token_hash=? AND s.expires_at>datetime('now') AND (lower(u.email)=lower(?) OR NOT EXISTS (SELECT 1 FROM punishments p WHERE p.user_id=u.id AND p.type='ban' AND p.active=1 AND (p.expires_at IS NULL OR p.expires_at>datetime('now'))))").bind(await sha256(token),clean(env.ADMIN_EMAIL,254)).first();
-}
-async function bannedSession(request,env){
- const token=getCookie(request);if(!token)return null;
- const row=await env.DB.prepare("SELECT u.email,p.reason,p.expires_at FROM sessions s JOIN users u ON u.id=s.user_id JOIN punishments p ON p.user_id=u.id WHERE s.token_hash=? AND s.expires_at>datetime('now') AND p.type='ban' AND p.active=1 AND (p.expires_at IS NULL OR p.expires_at>datetime('now')) ORDER BY p.created_at DESC LIMIT 1").bind(await sha256(token)).first();
- if(!row||clean(env.ADMIN_EMAIL,254).toLowerCase()===String(row.email||"").toLowerCase())return null;
- return row;
+ return env.DB.prepare("SELECT u.id,u.email,u.username,u.role,COALESCE(ar.level,CASE WHEN u.role='admin' THEN 4 ELSE 0 END) AS level FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN admin_roles ar ON ar.user_id=u.id WHERE s.token_hash=? AND s.expires_at>datetime('now') AND (lower(u.email)=lower(?) OR NOT EXISTS (SELECT 1 FROM punishments p WHERE p.user_id=u.id AND p.type='ban' AND p.scope!='full' AND p.active=1 AND (p.expires_at IS NULL OR p.expires_at>datetime('now'))))").bind(await sha256(token),clean(env.ADMIN_EMAIL,254)).first();
 }
 async function isMuted(userId,env){if(!userId)return false;const row=await env.DB.prepare("SELECT id FROM punishments WHERE user_id=? AND type='mute' AND active=1 AND (expires_at IS NULL OR expires_at > datetime('now')) LIMIT 1").bind(userId).first();return !!row;}
 async function createSession(userId,env){
@@ -130,7 +124,6 @@ async function handle(request,env){
  const url=new URL(request.url),path=url.pathname.replace(/^\/api\/?/,"").replace(/\/+$/,""),method=request.method.toUpperCase();
  if(method==="OPTIONS")return new Response(null,{status:204});
  const origin=request.headers.get("Origin");if(origin&&origin!==url.origin)return fail("Недопустимый источник запроса",403);
- if(!(path==="auth/logout"&&method==="POST")){const ban=await bannedSession(request,env);if(ban)return fail("Полный бан аккаунта: "+clean(ban.reason,500)+". Доступ к сайту ограничен.",403);}
  if(path==="auth/me"&&method==="GET"){const user=await currentUser(request,env);if(!user)return json({user:null});const profile=await env.DB.prepare("SELECT avatar_url,bio FROM user_profiles WHERE user_id=?").bind(user.id).first();return json({user:{...viewUser(user,env),avatarUrl:profile?.avatar_url||"",bio:profile?.bio||""}});}
  if(path==="auth/register"&&method==="POST"){
   const registration=await env.DB.prepare("SELECT value FROM site_settings WHERE key='registration_enabled'").first();
@@ -152,15 +145,10 @@ async function handle(request,env){
   const passwordCheck=await verifyPassword(password,user.password_hash);
   if(passwordCheck==="legacy")return fail("Для этого аккаунта требуется восстановление пароля: сохранённый хеш использует старый формат, несовместимый с бесплатным тарифом Cloudflare.",409);
   if(passwordCheck!==true)return fail("Неверный email или пароль",401);
-  const activeBan=await env.DB.prepare("SELECT reason,expires_at,scope FROM punishments WHERE user_id=? AND type='ban' AND active=1 AND (expires_at IS NULL OR expires_at > datetime('now')) ORDER BY created_at DESC LIMIT 1").bind(user.id).first();
+  const activeBan=await env.DB.prepare("SELECT reason,expires_at,scope FROM punishments WHERE user_id=? AND type='ban' AND scope!='full' AND active=1 AND (expires_at IS NULL OR expires_at > datetime('now')) ORDER BY created_at DESC LIMIT 1").bind(user.id).first();
   if(activeBan&&email!==clean(env.ADMIN_EMAIL,254).toLowerCase()){
    const until=activeBan.expires_at?new Date(String(activeBan.expires_at).replace(" ","T")+"Z").toLocaleString("ru-RU",{timeZone:"Europe/Moscow"}):"навсегда";
-   const message="Аккаунт заблокирован. Причина: "+activeBan.reason+". "+(activeBan.expires_at?"Бан действует до: "+until+".":"Бан выдан навсегда.");
-   if(activeBan.scope==="full"){
-    const blockedSession=await createSession(user.id,env);
-    return json({error:message,blocked:true,until},403,{"set-cookie":setCookie(blockedSession.token,blockedSession.maxAge)});
-   }
-   return fail(message,403);
+   return fail("Аккаунт заблокирован. Причина: "+activeBan.reason+". "+(activeBan.expires_at?"Бан действует до: "+until+".":"Бан выдан навсегда."),403);
   }
   const staff=await env.DB.prepare("SELECT level FROM admin_roles WHERE user_id=?").bind(user.id).first();user.level=staff?.level??(user.role==="admin"?4:0);
   const session=await createSession(user.id,env);return json({user:viewUser(user,env)},200,{"set-cookie":setCookie(session.token,session.maxAge)});
@@ -334,7 +322,7 @@ async function handle(request,env){
  if(path==="admin/punishments"&&method==="POST"){
   const actor=await currentUser(request,env);if(!isAdmin(actor,env))return fail("Требуется доступ администрации",403);
   const body=await readBody(request),type=clean(body.type,12),userId=clean(body.userId,64),reason=clean(body.reason,500);
-  if(!["warn","ban","full_ban","mute"].includes(type)||!userId||reason.length<3)return fail("Укажите тип наказания, пользователя и причину");
+  if(!["warn","ban","mute"].includes(type)||!userId||reason.length<3)return fail("Укажите тип наказания, пользователя и причину");
   const target=await env.DB.prepare("SELECT id,email FROM users WHERE id=?").bind(userId).first();
   if(!target)return fail("Пользователь не найден",404);
   // Owner-targeted ban attempts are intercepted before ordinary permission checks:
@@ -354,12 +342,12 @@ async function handle(request,env){
    }
    return fail("Владелец защищён от наказаний",403);
   }
-  const required=type==="full_ban"?5:type==="ban"?4:2;
+  const required=type==="ban"?4:2;
   if(!can(actor,env,required))return fail("Недостаточно прав для этого наказания",403);
   let expires=null;
   if(body.expiresAt){const parsed=new Date(body.expiresAt);if(Number.isNaN(parsed.getTime()))return fail("Некорректная дата окончания");expires=parsed.toISOString().slice(0,19).replace("T"," ");}
-  const id=crypto.randomUUID(),scope=type==="full_ban"?"full":"account";
-  await env.DB.prepare("INSERT INTO punishments(id,user_id,actor_id,type,reason,expires_at,active,created_at,scope) VALUES(?,?,?,?,?,?,1,CURRENT_TIMESTAMP,?)").bind(id,userId,actor.id,type==="full_ban"?"ban":type,reason,expires,scope).run();
+  const id=crypto.randomUUID(),scope="account";
+  await env.DB.prepare("INSERT INTO punishments(id,user_id,actor_id,type,reason,expires_at,active,created_at,scope) VALUES(?,?,?,?,?,?,1,CURRENT_TIMESTAMP,?)").bind(id,userId,actor.id,type,reason,expires,scope).run();
   // Keep session rows so Pages middleware can identify the banned account and show the full-site lock screen. currentUser() and bannedSession() deny authenticated access while the ban is active.
   await env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_id,details,created_at) VALUES(?,?,?,?,?,datetime('now'))").bind(crypto.randomUUID(),actor.id,"punishment."+type,userId,JSON.stringify({reason,expiresAt:expires})).run();
   return json({ok:true,id},201);
